@@ -1,8 +1,8 @@
-Flask==3.0.0
-Flask-SQLAlchemy==3.1.1
-Flask-Login==0.6.3
-requests==2.31.0
-pandas==2.1.4
-openpyxl==3.1.2
-SQLAlchemy==2.0.23
-Werkzeug==3.0.1
+Flask
+Flask-SQLAlchemy
+Flask-Login
+requests
+pandas
+openpyxl
+SQLAlchemy
+Werkzeug
