@@ -33,7 +33,7 @@ app.config["SECRET_KEY"] = "chia-khoa-bi-mat-cua-ban-ne-123456"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "database.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyD4UbJcAQl2cfB3uQxnkiUk5_vj56LbBYo").strip() 
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip() 
 GEMINI_MODEL = "gemini-2.5-flash-lite"  
 GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
 
@@ -884,4 +884,5 @@ def create_database():
 
 if __name__ == "__main__":
     with app.app_context(): create_database()
+
     app.run(debug=True)
