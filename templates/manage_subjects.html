@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Quản Lý Môn Học{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">
+            <i class="fas fa-book text-indigo-600"></i> Quản Lý Môn Học
+        </h1>
+        <p class="text-slate-600">Thêm, sửa, xóa môn học và cấu hình số cột điểm</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg p-6 mb-6 border border-slate-200">
+        <h2 class="text-xl font-bold text-slate-800 mb-4">
+            <i class="fas fa-plus-circle text-indigo-600"></i> Thêm Môn Học Mới
+        </h2>
+        <form method="POST" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Tên môn học *</label>
+                <input type="text" name="subject_name" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="VD: Toán học">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Mã môn *</label>
+                <input type="text" name="subject_code" required
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="VD: TOAN">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-700 mb-2">Mô tả</label>
+                <input type="text" name="description"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Mô tả môn học (tùy chọn)">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Số cột TX</label>
+                <input type="number" name="num_tx_columns" value="3" min="1" max="10"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Số cột GK</label>
+                <input type="number" name="num_gk_columns" value="1" min="1" max="5"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-2">Số cột HK</label>
+                <input type="number" name="num_hk_columns" value="1" min="1" max="5"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div class="flex items-end">
+                <button type="submit"
+                    class="w-full px-6 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition">
+                    <i class="fas fa-plus mr-2"></i> Thêm môn
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+        <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200">
+            <h2 class="text-xl font-bold text-slate-800">
+                <i class="fas fa-list text-indigo-600"></i> Danh Sách Môn Học
+            </h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Mã
+                            môn</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            Tên môn</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Mô
+                            tả</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            Cấu hình cột</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">
+                            Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% if subjects %}
+                    {% for subject in subjects %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold">{{
+                                subject.code }}</span>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="font-medium text-slate-800">{{ subject.name }}</div>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-slate-600">
+                            {{ subject.description or '-' }}
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex gap-2 justify-center">
+                                <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">TX: {{
+                                    subject.num_tx_columns }}</span>
+                                <span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">GK: {{
+                                    subject.num_gk_columns }}</span>
+                                <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">HK:
+                                    {{ subject.num_hk_columns }}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-center">
+                            <div class="flex gap-2 justify-center">
+                                <a href="{{ url_for('edit_subject', subject_id=subject.id) }}"
+                                    class="px-3 py-1 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm font-medium">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('delete_subject', subject_id=subject.id) }}"
+                                    class="inline"
+                                    onsubmit="return confirm('Xóa môn {{ subject.name }}? Tất cả điểm liên quan sẽ bị xóa.')">
+                                    <button type="submit"
+                                        class="px-3 py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-12 text-center text-slate-500">
+                            <i class="fas fa-inbox text-4xl mb-3 text-slate-300"></i>
+                            <p class="font-medium">Chưa có môn học nào</p>
+                            <p class="text-sm">Thêm môn học đầu tiên bằng form bên trên</p>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

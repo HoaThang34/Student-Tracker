@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Sửa Hồ Sơ{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto bg-white p-8 rounded-lg shadow">
+    <h2 class="text-2xl font-bold mb-6 text-gray-900">Cập Nhật Thông Tin Cá Nhân</h2>
+    
+    <form method="POST" action="{{ url_for('edit_profile') }}" class="space-y-6">
+
+        <div class="border-b pb-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Thông Tin Chung</h3>
+            <div class="grid grid-cols-1 gap-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Họ và Tên</label>
+                    <input type="text" name="full_name" value="{{ user.full_name }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Trường</label>
+                    <input type="text" name="school_name" value="{{ user.school_name }}" required
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Lớp Chủ Nhiệm Chính</label>
+                    <select name="main_class" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                        {% for class_name in all_classes %}
+                            <option value="{{ class_name }}" {% if class_name == user.main_class %}selected{% endif %}>
+                                {{ class_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Ngày Sinh</label>
+                    <input type="date" name="dob" value="{{ user.dob }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-4">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Tài Khoản & Bảo Mật (Tùy chọn)</h3>
+            <p class="text-sm text-gray-500 mb-4">Chỉ nhập bên dưới nếu bạn muốn thay đổi thông tin đăng nhập.</p>
+            
+            <div class="grid grid-cols-1 gap-y-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Tên Đăng Nhập Mới</label>
+                    <input type="text" name="new_username" value="{{ user.username }}"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Mật Khẩu Mới</label>
+                    <input type="password" name="new_password" placeholder="Để trống nếu không đổi"
+                           class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-bold text-red-600">Mật Khẩu Hiện Tại (Bắt buộc để lưu thay đổi)</label>
+                    <input type="password" name="current_password" required
+                           class="mt-1 block w-full rounded-md border-red-300 shadow-sm focus:border-red-500 focus:ring-red-500">
+                    <p class="text-xs text-gray-500 mt-1">Vui lòng nhập mật khẩu hiện tại để xác nhận danh tính.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4 border-t">
+            <a href="{{ url_for('profile') }}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50">Hủy</a>
+            <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Lưu Thay Đổi</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Báo Cáo Tuần {{ selected_week }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-8">
+    
+    <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+        <div>
+            <h1 class="text-3xl font-bold text-slate-800">Báo Cáo & Xếp Hạng Tuần</h1>
+            <p class="text-slate-500 mt-1">Dữ liệu tổng hợp tuần {{ selected_week }}.</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <div class="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 flex items-center">
+                <span class="pl-3 text-sm text-slate-500 font-medium whitespace-nowrap">Tuần:</span>
+                <form method="GET" action="{{ url_for('weekly_report') }}" class="flex">
+                    <input type="number" name="week" value="{{ selected_week }}" min="1" max="52"
+                           class="w-14 border-none focus:ring-0 text-center font-bold text-indigo-600 bg-transparent"
+                           onchange="this.form.submit()">
+                </form>
+            </div>
+            
+            <a href="{{ url_for('export_report', week=selected_week) }}" 
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-xl font-medium shadow-md shadow-green-200 transition flex items-center gap-2">
+                <i class="fas fa-file-excel"></i> Xuất Excel
+            </a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center">
+            <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xl mr-4">
+                <i class="fas fa-calendar-week"></i>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold">Tuần Hệ Thống</p>
+                <p class="text-2xl font-bold text-slate-800">{{ system_week }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center">
+            <div class="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xl mr-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold">Tổng Lỗi (Tuần này)</p>
+                <p class="text-2xl font-bold text-slate-800">{{ total_errors }}</p>
+            </div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center">
+            <div class="w-12 h-12 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xl mr-4">
+                <i class="fas fa-minus-circle"></i>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 uppercase font-bold">Điểm Đã Trừ</p>
+                <p class="text-2xl font-bold text-slate-800">-{{ total_points }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-1">
+            <div class="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden h-full flex flex-col">
+                <div class="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+                    <i class="fas fa-trophy text-yellow-500"></i>
+                    <h3 class="font-bold text-slate-700">Xếp Hạng Thi Đua</h3>
+                </div>
+                <div class="flex-1 overflow-y-auto max-h-[500px]">
+                    <table class="min-w-full divide-y divide-slate-50">
+                        <thead class="bg-slate-50 sticky top-0">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Hạng</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-slate-500">Lớp</th>
+                                <th class="px-4 py-2 text-right text-xs font-semibold text-slate-500">Điểm TB</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50 bg-white">
+                            {% for cls in class_rankings %}
+                            <tr class="hover:bg-slate-50 transition">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    {% if loop.index == 1 %}
+                                        <span class="w-6 h-6 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center text-xs font-bold">1</span>
+                                    {% elif loop.index == 2 %}
+                                        <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">2</span>
+                                    {% elif loop.index == 3 %}
+                                        <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center text-xs font-bold">3</span>
+                                    {% else %}
+                                        <span class="text-slate-400 text-sm pl-1.5 font-medium">{{ loop.index }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="font-bold text-slate-700">{{ cls.name }}</div>
+                                    {% if cls.weekly_deduct > 0 %}
+                                        <div class="text-[10px] text-red-500">Tuần này: -{{ cls.weekly_deduct }}</div>
+                                    {% else %}
+                                        <div class="text-[10px] text-emerald-500">Tuần này: Tốt</div>
+                                    {% endif %}
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-right">
+                                    <span class="font-mono font-bold {% if cls.avg_score >= 90 %}text-emerald-600{% elif cls.avg_score >= 80 %}text-indigo-600{% else %}text-red-600{% endif %}">
+                                        {{ cls.avg_score }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div class="bg-white shadow-sm border border-slate-200 rounded-2xl overflow-hidden h-full">
+                <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 class="font-bold text-slate-700">Chi Tiết Vi Phạm</h3>
+                    <button onclick="window.print()" class="text-sm text-slate-500 hover:text-indigo-600 flex items-center gap-1">
+                        <i class="fas fa-print"></i> In
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-100">
+                        <thead class="bg-slate-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Lớp</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Học Sinh</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase">Lỗi</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase">Điểm</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-50 bg-white">
+                            {% for row in violations %}
+                            <tr class="hover:bg-slate-50 transition-colors">
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <span class="px-2 py-0.5 rounded text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                        {{ row.Student.student_class }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap">
+                                    <div class="font-medium text-sm text-slate-900">{{ row.Student.name }}</div>
+                                    <div class="text-xs text-slate-400">{{ row.Student.student_code }}</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-slate-600">
+                                    {{ row.Violation.violation_type_name }}
+                                    <div class="text-[10px] text-slate-400">{{ row.Violation.date_committed.strftime('%d/%m') }}</div>
+                                </td>
+                                <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-red-600">
+                                    -{{ row.Violation.points_deducted }}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="px-6 py-10 text-center text-slate-400 italic">
+                                    Không có dữ liệu vi phạm.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

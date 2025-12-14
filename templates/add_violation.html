@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Ghi Nhận Vi Phạm{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Ghi Nhận Vi Phạm</h1>
+        <p class="text-slate-500">Hỗ trợ quét nhiều thẻ cùng lúc hoặc nhập thông tin thủ công.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center mr-2">
+                    <i class="fas fa-images"></i>
+                </div>
+                Quét Thẻ Hàng Loạt (OCR)
+            </h2>
+            
+            <form id="ocr-form" class="space-y-4">
+                <div class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition cursor-pointer relative group">
+                    <input type="file" id="ocr_files" name="files[]" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileCount(this)">
+                    <i class="fas fa-cloud-upload-alt text-4xl text-slate-400 mb-3 group-hover:text-indigo-500 transition"></i>
+                    <p class="text-sm text-slate-600 font-medium">Kéo thả hoặc chọn nhiều ảnh thẻ</p>
+                    <p class="text-xs text-slate-400 mt-1" id="file-count-display">Chưa có ảnh nào được chọn</p>
+                </div>
+                
+                <button type="submit" id="ocr-button" class="w-full py-3 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition shadow-md flex items-center justify-center gap-2">
+                    <i class="fas fa-magic"></i> Phân Tích Tất Cả
+                </button>
+            </form>
+
+            <div id="ocr-results-area" class="mt-6 space-y-3 hidden">
+                <div class="flex justify-between items-center border-b pb-2">
+                    <h3 class="text-sm font-bold text-slate-700">Kết quả phân tích:</h3>
+                    <div class="text-xs text-slate-500">Đã chọn: <span id="selected-count" class="font-bold text-indigo-600">0</span></div>
+                </div>
+                
+                <div id="results-list" class="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar bg-slate-50 p-2 rounded-lg">
+                    
+                </div>
+
+                <div id="batch-actions" class="pt-4 border-t hidden">
+                    <form method="POST" action="{{ url_for('add_violation') }}" onsubmit="prepareBatchSubmit(event)">
+                        
+                        <input type="hidden" name="students_list" id="students_json_input">
+                        
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Áp dụng lỗi vi phạm:</label>
+                        <select name="rule_id" required class="w-full mb-3 border-slate-300 rounded-lg text-sm p-2.5">
+                            <option value="">-- Chọn lỗi --</option>
+                            {% for rule in rules %}
+                                <option value="{{ rule.id }}">{{ rule.name }} (-{{ rule.points_deducted }}đ)</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="w-full py-2.5 bg-emerald-600 text-white rounded-lg font-bold hover:bg-emerald-700 shadow-md transition transform active:scale-95">
+                            Xác Nhận & Lưu Vào CSDL
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-fit">
+            <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center mr-2">
+                    <i class="fas fa-pen"></i>
+                </div>
+                Nhập Thủ Công (Đơn Lẻ)
+            </h2>
+
+            <form method="POST" action="{{ url_for('add_violation') }}" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Mã Số hoặc Tên</label>
+                    <input type="text" name="student_name" required
+                           class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 py-2.5"
+                           placeholder="Nhập tên hoặc mã số...">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Loại Vi Phạm</label>
+                    <select name="rule_id" required
+                            class="w-full border-slate-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 py-2.5 bg-white">
+                        <option value="">-- Chọn lỗi vi phạm --</option>
+                        {% for rule in rules %}
+                            <option value="{{ rule.id }}">{{ rule.name }} (-{{ rule.points_deducted }}đ)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit" class="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-bold shadow-md transition-all">
+                        Ghi Nhận
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    function updateFileCount(input) {
+        const count = input.files.length;
+        const text = count > 0 ? `Đã chọn ${count} ảnh` : "Chưa có ảnh nào được chọn";
+        document.getElementById('file-count-display').innerText = text;
+        document.getElementById('file-count-display').className = count > 0 ? "text-sm text-indigo-600 font-bold mt-1" : "text-xs text-slate-400 mt-1";
+    }
+
+    // Hàm cập nhật số lượng đã chọn
+    function updateSelectionCount() {
+        const checkedCount = $('.ocr-checkbox:checked').length;
+        $('#selected-count').text(checkedCount);
+        
+        if (checkedCount > 0) {
+            $('#batch-actions').removeClass('hidden');
+        } else {
+            $('#batch-actions').addClass('hidden');
+        }
+    }
+
+    // Hàm chuẩn bị dữ liệu trước khi submit form hàng loạt
+    function prepareBatchSubmit(e) {
+        let selectedCodes = [];
+        $('.ocr-checkbox:checked').each(function() {
+            selectedCodes.push($(this).val());
+        });
+        
+        if (selectedCodes.length === 0) {
+            e.preventDefault();
+            alert("Vui lòng chọn ít nhất 1 học sinh để ghi nhận!");
+            return false;
+        }
+        
+        // Gán mảng JSON vào input hidden
+        $('#students_json_input').val(JSON.stringify(selectedCodes));
+        return true;
+    }
+
+    $(document).ready(function() {
+        $('#ocr-form').on('submit', function(e) {
+            e.preventDefault(); 
+            var ocrButton = $('#ocr-button');
+            var files = $('#ocr_files')[0].files;
+            
+            if (files.length === 0) { alert("Vui lòng chọn ít nhất 1 ảnh!"); return; }
+            
+            var formData = new FormData();
+            for (var i = 0; i < files.length; i++) {
+                formData.append('files[]', files[i]);
+            }
+            
+            ocrButton.prop('disabled', true).html('<i class="fas fa-circle-notch fa-spin"></i> Đang xử lý...');
+            $('#ocr-results-area').removeClass('hidden');
+            $('#results-list').html('<div class="text-center text-slate-500 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Đang gửi ảnh lên server AI...</div>');
+            $('#batch-actions').addClass('hidden');
+    
+            $.ajax({
+                url: '{{ url_for('upload_ocr') }}',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function(response) {
+                    $('#results-list').empty();
+                    
+                    if (response.results && response.results.length > 0) {
+                        let hasValid = false;
+                        
+                        response.results.forEach((item, index) => {
+                            let itemHtml = '';
+                            
+                            // Chỉ cho phép chọn nếu tìm thấy trong CSDL
+                            if (item.found) {
+                                hasValid = true;
+                                let info = item.db_info;
+                                itemHtml = `
+                                    <label class="flex items-center p-3 bg-white border border-slate-200 rounded-lg hover:bg-indigo-50 transition cursor-pointer group select-none">
+                                        <input type="checkbox" value="${info.code}" class="w-5 h-5 rounded border-gray-300 focus:ring-indigo-500 text-indigo-600 cursor-pointer ocr-checkbox" checked onchange="updateSelectionCount()">
+                                        <div class="ml-3 flex-1">
+                                            <p class="text-sm font-bold text-slate-800 group-hover:text-indigo-700">${info.name}</p>
+                                            <p class="text-xs text-slate-500">Lớp: ${info.class} • Mã: ${info.code}</p>
+                                        </div>
+                                        <div class="text-emerald-600 text-xs font-bold bg-emerald-50 px-2 py-1 rounded">Hợp lệ</div>
+                                    </label>
+                                `;
+                            } else {
+                                let errorText = item.error ? item.error : (item.data ? `Không khớp CSDL (Mã đọc được: ${item.data.student_code || '?'})` : 'Không đọc được');
+                                itemHtml = `
+                                    <div class="flex items-center p-3 bg-red-50 border border-red-100 rounded-lg opacity-70">
+                                        <input type="checkbox" disabled class="w-5 h-5 rounded border-gray-300 text-slate-300 bg-slate-100 cursor-not-allowed">
+                                        <div class="ml-3 flex-1">
+                                            <p class="text-sm font-medium text-red-800 italic">${errorText}</p>
+                                            <p class="text-xs text-red-500">File: ${item.file_name}</p>
+                                        </div>
+                                        <div class="text-red-500 text-xs font-bold"><i class="fas fa-times"></i></div>
+                                    </div>
+                                `;
+                            }
+                            $('#results-list').append(itemHtml);
+                        });
+
+                        updateSelectionCount();
+
+                        if (!hasValid) {
+                            $('#results-list').append('<div class="text-center text-red-500 text-sm mt-2 p-2 bg-white rounded border border-red-200">Không tìm thấy học sinh nào hợp lệ để ghi nhận.</div>');
+                        }
+                    } else {
+                        $('#results-list').html('<div class="text-red-500 text-center">Lỗi: Không có kết quả trả về từ server.</div>');
+                    }
+                },
+                error: function() { 
+                    $('#results-list').html('<div class="text-red-500 text-center font-bold">❌ Lỗi kết nối server. Vui lòng thử lại.</div>'); 
+                },
+                complete: function() { 
+                    ocrButton.prop('disabled', false).html('<i class="fas fa-magic"></i> Phân Tích Tất Cả'); 
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

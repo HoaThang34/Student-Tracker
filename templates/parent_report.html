@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}Báo Cáo Phụ Huynh - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto" id="reportContent">
+    
+    <div class="mb-6 no-export">
+        <a href="{{ url_for('student_detail', student_id=student.id) }}"
+            class="text-indigo-600 hover:text-indigo-700 font-medium">
+            <i class="fas fa-arrow-left mr-2"></i> Quay lại chi tiết học sinh
+        </a>
+    </div>
+
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-8 mb-6 text-white">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold mb-2">BÁO CÁO TỔNG HỢP</h1>
+            <p class="text-xl">Học kỳ {{ semester }} - Năm học {{ school_year }}</p>
+        </div>
+        <div class="mt-6 pt-6 border-t border-white/30">
+            <div class="grid grid-cols-3 gap-4 text-center">
+                <div>
+                    <p class="text-sm opacity-80">Họ và tên</p>
+                    <p class="text-lg font-bold">{{ student.name }}</p>
+                </div>
+                <div>
+                    <p class="text-sm opacity-80">Mã số</p>
+                    <p class="text-lg font-bold">{{ student.student_code }}</p>
+                </div>
+                <div>
+                    <p class="text-sm opacity-80">Lớp</p>
+                    <p class="text-lg font-bold">{{ student.student_class }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex gap-3 mb-6 no-export">
+        <button onclick="generateAIReport()" id="aiButton"
+            class="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-lg transition">
+            <i class="fas fa-robot mr-2"></i> Tạo Nhận Xét AI
+        </button>
+        <button onclick="exportReportToPNG()"
+            class="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-lg transition">
+            <i class="fas fa-download mr-2"></i> Xuất PNG
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-graduation-cap text-indigo-600"></i> Kết Quả Học Tập
+            </h3>
+            <div class="space-y-3">
+                {% if gpa %}
+                <div class="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                    <span class="font-medium text-slate-700">GPA:</span>
+                    <span class="text-2xl font-bold text-indigo-600">{{ gpa }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span class="font-medium text-slate-700">Xếp loại:</span>
+                    {% if gpa >= 8.5 %}
+                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full font-semibold">Giỏi</span>
+                    {% elif gpa >= 7.0 %}
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">Khá</span>
+                    {% elif gpa >= 5.0 %}
+                    <span class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full font-semibold">Trung Bình</span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full font-semibold">Yếu</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <p class="text-slate-500 text-center py-4">Chưa có điểm học kỳ này</p>
+                {% endif %}
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span class="font-medium text-slate-700">Số môn học:</span>
+                    <span class="font-bold text-slate-800">{{ transcript_data|length }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <i class="fas fa-user-check text-green-600"></i> Rèn Luyện
+            </h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                    <span class="font-medium text-slate-700">Điểm rèn luyện:</span>
+                    <span class="text-2xl font-bold text-green-600">{{ student.current_score }}/100</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span class="font-medium text-slate-700">Tổng vi phạm:</span>
+                    <span class="font-bold text-slate-800">{{ total_violations }}</span>
+                </div>
+                <div class="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                    <span class="font-medium text-slate-700">Vi phạm gần đây:</span>
+                    <span class="font-bold text-slate-800">{{ recent_violations|length }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if transcript_data %}
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800">
+                <i class="fas fa-table text-indigo-600"></i> Chi Tiết Điểm Các Môn
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-bold text-slate-700">Môn học</th>
+                        <th class="px-4 py-3 text-center text-sm font-bold text-slate-700">TX</th>
+                        <th class="px-4 py-3 text-center text-sm font-bold text-slate-700">GK</th>
+                        <th class="px-4 py-3 text-center text-sm font-bold text-slate-700">HK</th>
+                        <th class="px-4 py-3 text-center text-sm font-bold text-slate-700 bg-indigo-50">TBM</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                    {% for item in transcript_data %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="px-6 py-3 font-medium text-slate-800">{{ item.subject.name }}</td>
+                        <td class="px-4 py-3 text-center text-sm">
+                            {% if item.tx_scores %}{{ "%.1f"|format(item.tx_scores|sum / item.tx_scores|length) }}{%
+                            else %}-{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center text-sm">
+                            {% if item.gk_scores %}{{ "%.1f"|format(item.gk_scores|sum / item.gk_scores|length) }}{%
+                            else %}-{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center text-sm">
+                            {% if item.hk_scores %}{{ "%.1f"|format(item.hk_scores|sum / item.hk_scores|length) }}{%
+                            else %}-{% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center bg-indigo-50">
+                            {% if item.avg_score %}
+                            <span class="font-bold text-indigo-600">{{ item.avg_score }}</span>
+                            {% else %}
+                            <span class="text-slate-400">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if recent_violations %}
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gradient-to-r from-red-50 to-orange-50 border-b border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800">
+                <i class="fas fa-exclamation-triangle text-red-600"></i> Vi Phạm Gần Đây (5 tuần gần nhất)
+            </h3>
+        </div>
+        <div class="p-6">
+            <div class="space-y-2">
+                {% for violation in recent_violations %}
+                <div class="flex justify-between items-center p-3 rounded-lg hover:bg-slate-50 border border-slate-200">
+                    <div>
+                        <span class="font-medium text-slate-800">{{ violation.violation_type_name }}</span>
+                        <span class="text-sm text-slate-500 ml-2">{{ violation.date_committed.strftime('%d/%m/%Y')
+                            }}</span>
+                    </div>
+                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+                        -{{ violation.points_deducted }} điểm
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden mb-6">
+        <div class="px-6 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-slate-200">
+            <h3 class="text-lg font-bold text-slate-800">
+                <i class="fas fa-comment-dots text-purple-600"></i> Nhận Xét Của Giáo Viên
+            </h3>
+        </div>
+        <div class="p-6">
+            <div id="aiComments" class="text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg italic min-h-[100px]">
+                <p class="text-slate-400 text-center">Nhấn nút "Tạo Nhận Xét AI" để sinh nhận xét tự động</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-lg border border-slate-200 p-6 text-center">
+        <p class="text-sm text-slate-600">
+            Báo cáo được tạo tự động bởi hệ thống quản lý học sinh
+        </p>
+        <p class="text-xs text-slate-500 mt-1">
+            Ngày tạo: {{ now.strftime('%d/%m/%Y') if now else '' }}
+        </p>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+    async function generateAIReport() {
+        const button = document.getElementById('aiButton');
+        const commentsDiv = document.getElementById('aiComments');
+
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang tạo...';
+        commentsDiv.innerHTML = '<p class="text-slate-400 text-center"><i class="fas fa-spinner fa-spin mr-2"></i> AI đang phân tích...</p>';
+
+        try {
+            const response = await fetch('/api/generate_parent_report/{{ student.id }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    semester: {{ semester }},
+                school_year: '{{ school_year }}'
+                })
+    });
+
+    const data = await response.json();
+
+    if (data.report) {
+        commentsDiv.innerHTML = '<p class="text-slate-700">' + data.report.replace(/\n/g, '<br>') + '</p>';
+    } else {
+        commentsDiv.innerHTML = '<p class="text-red-600">Lỗi: ' + (data.error || 'Không nhận được phản hồi') + '</p>';
+    }
+        } catch (error) {
+        commentsDiv.innerHTML = '<p class="text-red-600">Lỗi kết nối: ' + error.message + '</p>';
+    } finally {
+        button.disabled = false;
+        button.innerHTML = '<i class="fas fa-robot mr-2"></i> Tạo Nhận Xét AI';
+    }
+    }
+
+    async function exportReportToPNG() {
+        const button = event.target;
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Đang tạo...';
+        button.disabled = true;
+
+        // Hide export buttons temporarily
+        document.querySelectorAll('.no-export').forEach(el => el.style.display = 'none');
+
+        try {
+            const element = document.getElementById('reportContent');
+
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                logging: false,
+                useCORS: true,
+                allowTaint: true
+            });
+
+            canvas.toBlob(function (blob) {
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'Bao_Cao_{{ student.student_code }}_HK{{ semester }}.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                // Restore
+                document.querySelectorAll('.no-export').forEach(el => el.style.display = '');
+                button.innerHTML = originalHTML;
+                button.disabled = false;
+            }, 'image/png');
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Có lỗi khi xuất file PNG');
+            document.querySelectorAll('.no-export').forEach(el => el.style.display = '');
+            button.innerHTML = originalHTML;
+            button.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

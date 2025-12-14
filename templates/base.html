@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>{% block title %}Student Tracker{% endblock %}</title>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        primary: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 900: '#312e81' },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-effect { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .sidebar-link { transition: all 0.2s; border-left: 3px solid transparent; }
+        .sidebar-link:hover, .sidebar-link.active { background: #1e293b; border-left-color: #6366f1; color: white; }
+        .sidebar-link i { width: 24px; text-align: center; }
+
+        .flash-toast { transition: all 0.5s ease-in-out; transform: translateX(0); opacity: 1; }
+        .flash-toast.hide { transform: translateX(100%); opacity: 0; }
+    </style>
+</head>
+<body class="h-full flex overflow-hidden bg-slate-50 text-slate-800">
+
+    <div id="sidebar-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden z-40 transition-opacity lg:hidden" onclick="closeSidebar()"></div>
+
+    <aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-slate-900 text-slate-300 transform -translate-x-full transition-transform duration-300 lg:translate-x-0 lg:static z-50 flex flex-col shadow-2xl">
+        <div class="h-16 flex items-center px-6 bg-slate-950 border-b border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">S</div>
+                <span class="text-xl font-bold text-white tracking-tight">Student Tracker</span>
+            </div>
+            <button onclick="closeSidebar()" class="lg:hidden ml-auto text-slate-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <nav class="flex-1 p-4 space-y-6 overflow-y-auto">
+            <div>
+                <p class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tổng Quan</p>
+                <div class="space-y-1">
+                    <a href="{{ url_for('welcome') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'welcome' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-home mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'welcome' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Trang Chủ</span>
+                    </a>
+                    <a href="{{ url_for('dashboard') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'dashboard' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-chart-pie mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'dashboard' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Dashboard</span>
+                    </a>
+                    <a href="{{ url_for('index') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'index' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-list-ul mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'index' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Bảng Điểm Rèn Luyện</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Báo Cáo & Thống Kê</p>
+                <div class="space-y-1">
+                    <a href="{{ url_for('weekly_report') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'weekly_report' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-clipboard-check mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'weekly_report' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Báo Cáo Tuần</span>
+                    </a>
+                    <a href="{{ url_for('history') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'history' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-history mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'history' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Kho Lưu Trữ Kết Quả</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Quản Lý Điểm</p>
+                <div class="space-y-1">
+                    <a href="{{ url_for('manage_subjects') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'manage_subjects' or request.endpoint == 'edit_subject' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-book mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'manage_subjects' or request.endpoint == 'edit_subject' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Quản Lý Môn Học</span>
+                    </a>
+                    <a href="{{ url_for('manage_grades') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'manage_grades' or request.endpoint == 'student_grades' or request.endpoint == 'student_transcript' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-pencil-alt mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'manage_grades' or request.endpoint == 'student_grades' or request.endpoint == 'student_transcript' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Nhập Điểm</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Tác Vụ</p>
+                <div class="space-y-1">
+                    <a href="{{ url_for('add_violation') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'add_violation' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-bolt mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'add_violation' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Ghi Nhận Vi Phạm</span>
+                    </a>
+                </div>
+            </div>
+
+            <div>
+                <p class="px-3 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Hệ Thống</p>
+                <div class="space-y-1">
+                    <a href="{{ url_for('manage_students') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'manage_students' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-user-graduate mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'manage_students' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Quản Lý Học Sinh</span>
+                    </a>
+                    <a href="{{ url_for('manage_rules') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'manage_rules' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-gavel mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'manage_rules' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Quy Định & Điểm Trừ</span>
+                    </a>
+                    <a href="{{ url_for('chatbot') }}" class="sidebar-link flex items-center px-3 py-2.5 rounded-r-md group {% if request.endpoint == 'chatbot' %}active text-white bg-slate-800 border-indigo-500{% endif %}">
+                        <i class="fas fa-robot mr-3 group-hover:text-indigo-400 {% if request.endpoint == 'chatbot' %}text-indigo-400{% endif %}"></i>
+                        <span class="font-medium">Trợ Lý Ảo (Chatbot)</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+        
+        {% if current_user.is_authenticated %}
+        <div class="p-4 bg-slate-950 border-t border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-lg">
+                    {{ current_user.full_name[0] | upper }}
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-white truncate">{{ current_user.full_name }}</p>
+                    <p class="text-xs text-slate-500 truncate">Giáo viên</p>
+                </div>
+                <a href="{{ url_for('logout') }}" class="text-slate-400 hover:text-red-400 transition-colors" title="Đăng xuất">
+                    <i class="fas fa-sign-out-alt"></i>
+                </a>
+            </div>
+             <a href="{{ url_for('profile') }}" class="block mt-3 text-center text-xs text-indigo-400 hover:text-indigo-300 hover:underline">Xem hồ sơ</a>
+        </div>
+        {% endif %}
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        
+        <header class="glass-effect sticky top-0 z-30 border-b border-slate-200 h-16 flex items-center justify-between px-4 sm:px-6 shadow-sm">
+            <div class="flex items-center gap-4">
+                <button type="button" id="mobile-menu-button" onclick="toggleSidebar()" class="lg:hidden text-slate-500 hover:text-indigo-600 focus:outline-none">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+                
+                <div class="flex items-center gap-2">
+                     <div onclick="showTimeModal()" class="cursor-pointer group flex items-center gap-2 px-4 py-1.5 bg-white border border-slate-200 rounded-full shadow-sm hover:shadow-md hover:border-indigo-300 transition-all">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">Tuần {{ current_week_number }}</span>
+                    </div>
+                    <button onclick="openEditWeekModal()" class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition">
+                        <i class="fas fa-pen text-xs"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="hidden md:block font-medium text-slate-500">
+                Hệ Thống Quản Lý Học Sinh
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-8 scroll-smooth">
+            <div id="flash-container" class="fixed top-20 right-4 z-50 w-full max-w-sm space-y-3 pointer-events-none">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="flash-toast pointer-events-auto p-4 rounded-xl shadow-xl border-l-4 bg-white flex items-start gap-3 transform hover:scale-105 transition-transform
+                                  {% if category == 'error' %}border-red-500{% else %}border-green-500{% endif %}">
+                        <div class="flex-shrink-0">
+                             {% if category == 'error' %}
+                                <i class="fas fa-exclamation-circle text-red-500 text-xl"></i>
+                             {% else %}
+                                <i class="fas fa-check-circle text-green-500 text-xl"></i>
+                             {% endif %}
+                        </div>
+                        <div class="flex-1">
+                             <h3 class="text-sm font-semibold {% if category == 'error' %}text-red-800{% else %}text-green-800{% endif %}">Thông báo</h3>
+                             <p class="text-sm text-slate-600 mt-1">{{ message }}</p>
+                        </div>
+                        <button onclick="this.parentElement.remove()" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+            </div>
+
+            <div class="fade-in max-w-7xl mx-auto">
+                {% block content %}{% endblock %}
+                {% block login_content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <div id="timeModal" class="fixed inset-0 z-50 hidden" onclick="closeTimeModal()">
+        <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"></div>
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative z-10 text-center animate-[bounce_0.5s_ease-out]" onclick="event.stopPropagation()">
+                <h2 class="text-2xl font-bold text-slate-800 mb-2">Thời Gian Hệ Thống</h2>
+                <div class="inline-block px-4 py-1 bg-indigo-100 text-indigo-700 rounded-full font-semibold text-sm mb-6">Tuần {{ current_week_number }}</div>
+                
+                <div class="bg-slate-50 rounded-xl p-6 border border-slate-200 mb-6">
+                    <div id="modal-time" class="text-6xl font-mono font-bold text-slate-800 tracking-tighter">00:00</div>
+                    <div id="modal-date" class="text-indigo-500 font-medium uppercase mt-2 tracking-wide">...</div>
+                </div>
+                <button onclick="closeTimeModal()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="editWeekModal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onclick="closeEditWeekModal()"></div>
+        <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xs z-10 relative">
+            <h3 class="text-lg font-bold text-slate-800 text-center mb-4">Chỉnh Sửa Tuần Học</h3>
+            <form action="{{ url_for('update_week') }}" method="POST">
+                <div class="relative flex items-center justify-center mb-6">
+                    <button type="button" onclick="document.querySelector('input[name=new_week]').stepDown()" class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"><i class="fas fa-minus"></i></button>
+                    <input type="number" name="new_week" value="{{ current_week_number }}" min="1" max="52" required
+                           class="w-20 text-center border-none text-3xl font-bold text-indigo-600 focus:ring-0 mx-2">
+                    <button type="button" onclick="document.querySelector('input[name=new_week]').stepUp()" class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600"><i class="fas fa-plus"></i></button>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="closeEditWeekModal()" class="flex-1 py-2 bg-slate-100 text-slate-600 rounded-lg font-medium hover:bg-slate-200 transition">Hủy</button>
+                    <button type="submit" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        function toggleSidebar() {
+            sidebar.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+        function closeSidebar() {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+        
+        function updateGlobalClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('vi-VN', { hour12: false, hour: '2-digit', minute:'2-digit' });
+            const modal = document.getElementById('timeModal');
+            if (!modal.classList.contains('hidden')) {
+                document.getElementById('modal-time').innerText = timeStr;
+                document.getElementById('modal-date').innerText = now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' });
+            }
+        }
+        setInterval(updateGlobalClock, 1000);
+        
+        function showTimeModal() { document.getElementById('timeModal').classList.remove('hidden'); updateGlobalClock(); }
+        function closeTimeModal() { document.getElementById('timeModal').classList.add('hidden'); }
+        function openEditWeekModal() { document.getElementById('editWeekModal').classList.remove('hidden'); }
+        function closeEditWeekModal() { document.getElementById('editWeekModal').classList.add('hidden'); }
+
+        setTimeout(() => {
+            document.querySelectorAll('.flash-toast').forEach(t => {
+                t.classList.add('hide');
+                setTimeout(() => t.remove(), 500);
+            });
+        }, 5000);
+    </script>
+</body>
+</html>

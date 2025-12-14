@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+{% block title %}Nhập Điểm - {{ student.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    
+    <div class="mb-6">
+        <a href="{{ url_for('manage_grades') }}" class="text-indigo-600 hover:text-indigo-700 font-medium">
+            <i class="fas fa-arrow-left mr-2"></i> Quay lại danh sách
+        </a>
+    </div>
+
+    <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold mb-2">{{ student.name }}</h1>
+                <div class="flex gap-4 text-sm">
+                    <span><i class="fas fa-id-card mr-2"></i>{{ student.student_code }}</span>
+                    <span><i class="fas fa-school mr-2"></i>{{ student.student_class }}</span>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <select onchange="changeSemester(this.value)"
+                    class="px-4 py-2 bg-white/20 backdrop-blur rounded-lg text-white font-medium border border-white/30 focus:ring-2 focus:ring-white/50">
+                    <option value="1" {% if semester==1 %}selected{% endif %}>Học kỳ 1</option>
+                    <option value="2" {% if semester==2 %}selected{% endif %}>Học kỳ 2</option>
+                </select>
+                <a href="{{ url_for('student_transcript', student_id=student.id, semester=semester, school_year=school_year) }}"
+                    class="px-4 py-2 bg-white/20 backdrop-blur rounded-lg font-medium border border-white/30 hover:bg-white/30 transition">
+                    <i class="fas fa-file-alt mr-2"></i> Xem bảng điểm
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-lg p-6 border border-slate-200 sticky top-4">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">
+                    <i class="fas fa-plus-circle text-indigo-600"></i> Nhập Điểm Mới
+                </h2>
+                <form method="POST" class="space-y-4">
+                    <input type="hidden" name="school_year" value="{{ school_year }}">
+                    <input type="hidden" name="semester" value="{{ semester }}">
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Môn học *</label>
+                        <select name="subject_id" id="subjectSelect" required onchange="updateColumnOptions()"
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">-- Chọn môn --</option>
+                            {% for subject in subjects %}
+                            <option value="{{ subject.id }}" data-tx="{{ subject.num_tx_columns }}"
+                                data-gk="{{ subject.num_gk_columns }}" data-hk="{{ subject.num_hk_columns }}">
+                                {{ subject.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Loại điểm *</label>
+                        <select name="grade_type" id="gradeTypeSelect" required onchange="updateColumnOptions()"
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">-- Chọn loại --</option>
+                            <option value="TX">Thường xuyên (TX)</option>
+                            <option value="GK">Giữa kỳ (GK)</option>
+                            <option value="HK">Học kỳ (HK)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Cột điểm *</label>
+                        <select name="column_index" id="columnSelect" required
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="1">Cột 1</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Điểm số * (0-10)</label>
+                        <input type="number" name="score" step="0.1" min="0" max="10" required
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="VD: 8.5">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition">
+                        <i class="fas fa-save mr-2"></i> Lưu điểm
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div class="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                <div class="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 border-b border-slate-200">
+                    <h2 class="text-xl font-bold text-slate-800">
+                        <i class="fas fa-table text-indigo-600"></i> Bảng Điểm Học Kỳ {{ semester }}
+                    </h2>
+                </div>
+
+                {% if subjects %}
+                <div class="p-6 space-y-6">
+                    {% for subject in subjects %}
+                    {% set subject_grade_data = grades_by_subject.get(subject.id, {'TX': {}, 'GK': {}, 'HK': {}}) %}
+                    <div class="border border-slate-200 rounded-lg overflow-hidden">
+                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                            <h3 class="font-bold text-slate-800">{{ subject.name }}</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-slate-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-semibold text-slate-600 uppercase">
+                                            Loại</th>
+                                        {% for i in range(1, [subject.num_tx_columns, subject.num_gk_columns,
+                                        subject.num_hk_columns]|max + 1) %}
+                                        <th class="px-4 py-2 text-center text-xs font-semibold text-slate-600">Cột {{ i
+                                            }}</th>
+                                        {% endfor %}
+                                        <th class="px-4 py-2 text-center text-xs font-semibold text-slate-600">TB</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200">
+                                    
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3">
+                                            <span
+                                                class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-semibold">TX</span>
+                                        </td>
+                                        {% for i in range(1, subject.num_tx_columns + 1) %}
+                                        <td class="px-4 py-3 text-center">
+                                            {% if i in subject_grade_data['TX'] %}
+                                            <div class="flex items-center justify-center gap-2">
+                                                <span class="font-semibold text-slate-800">{{
+                                                    subject_grade_data['TX'][i].score }}</span>
+                                                <form method="POST"
+                                                    action="{{ url_for('delete_grade', grade_id=subject_grade_data['TX'][i].id) }}"
+                                                    class="inline">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700"
+                                                        onclick="return confirm('Xóa điểm này?')">
+                                                        <i class="fas fa-times-circle text-xs"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-slate-300">-</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endfor %}
+                                        {% for i in range(subject.num_tx_columns + 1, [subject.num_tx_columns,
+                                        subject.num_gk_columns, subject.num_hk_columns]|max + 1) %}
+                                        <td class="px-4 py-3 text-center bg-slate-50"></td>
+                                        {% endfor %}
+                                        <td class="px-4 py-3 text-center font-bold text-blue-700">
+                                            {% set tx_scores =
+                                            subject_grade_data['TX'].values()|map(attribute='score')|list %}
+                                            {% if tx_scores %}{{ "%.1f"|format(tx_scores|sum / tx_scores|length) }}{%
+                                            else %}-{% endif %}
+                                        </td>
+                                    </tr>
+
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3">
+                                            <span
+                                                class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">GK</span>
+                                        </td>
+                                        {% for i in range(1, subject.num_gk_columns + 1) %}
+                                        <td class="px-4 py-3 text-center">
+                                            {% if i in subject_grade_data['GK'] %}
+                                            <div class="flex items-center justify-center gap-2">
+                                                <span class="font-semibold text-slate-800">{{
+                                                    subject_grade_data['GK'][i].score }}</span>
+                                                <form method="POST"
+                                                    action="{{ url_for('delete_grade', grade_id=subject_grade_data['GK'][i].id) }}"
+                                                    class="inline">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700"
+                                                        onclick="return confirm('Xóa điểm này?')">
+                                                        <i class="fas fa-times-circle text-xs"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-slate-300">-</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endfor %}
+                                        {% for i in range(subject.num_gk_columns + 1, [subject.num_tx_columns,
+                                        subject.num_gk_columns, subject.num_hk_columns]|max + 1) %}
+                                        <td class="px-4 py-3 text-center bg-slate-50"></td>
+                                        {% endfor %}
+                                        <td class="px-4 py-3 text-center font-bold text-green-700">
+                                            {% set gk_scores =
+                                            subject_grade_data['GK'].values()|map(attribute='score')|list %}
+                                            {% if gk_scores %}{{ "%.1f"|format(gk_scores|sum / gk_scores|length) }}{%
+                                            else %}-{% endif %}
+                                        </td>
+                                    </tr>
+
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="px-4 py-3">
+                                            <span
+                                                class="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">HK</span>
+                                        </td>
+                                        {% for i in range(1, subject.num_hk_columns + 1) %}
+                                        <td class="px-4 py-3 text-center">
+                                            {% if i in subject_grade_data['HK'] %}
+                                            <div class="flex items-center justify-center gap-2">
+                                                <span class="font-semibold text-slate-800">{{
+                                                    subject_grade_data['HK'][i].score }}</span>
+                                                <form method="POST"
+                                                    action="{{ url_for('delete_grade', grade_id=subject_grade_data['HK'][i].id) }}"
+                                                    class="inline">
+                                                    <button type="submit" class="text-red-500 hover:text-red-700"
+                                                        onclick="return confirm('Xóa điểm này?')">
+                                                        <i class="fas fa-times-circle text-xs"></i>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-slate-300">-</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endfor %}
+                                        {% for i in range(subject.num_hk_columns + 1, [subject.num_tx_columns,
+                                        subject.num_gk_columns, subject.num_hk_columns]|max + 1) %}
+                                        <td class="px-4 py-3 text-center bg-slate-50"></td>
+                                        {% endfor %}
+                                        <td class="px-4 py-3 text-center font-bold text-purple-700">
+                                            {% set hk_scores =
+                                            subject_grade_data['HK'].values()|map(attribute='score')|list %}
+                                            {% if hk_scores %}{{ "%.1f"|format(hk_scores|sum / hk_scores|length) }}{%
+                                            else %}-{% endif %}
+                                        </td>
+                                    </tr>
+
+                                    <tr class="bg-indigo-50 font-bold">
+                                        <td class="px-4 py-3">
+                                            <span
+                                                class="px-2 py-1 bg-indigo-600 text-white rounded text-xs font-semibold">TBM</span>
+                                        </td>
+                                        <td colspan="{{ [subject.num_tx_columns, subject.num_gk_columns, subject.num_hk_columns]|max }}"
+                                            class="px-4 py-3"></td>
+                                        <td class="px-4 py-3 text-center text-indigo-700 text-lg">
+                                            {% set tx_scores =
+                                            subject_grade_data['TX'].values()|map(attribute='score')|list %}
+                                            {% set gk_scores =
+                                            subject_grade_data['GK'].values()|map(attribute='score')|list %}
+                                            {% set hk_scores =
+                                            subject_grade_data['HK'].values()|map(attribute='score')|list %}
+                                            {% if tx_scores and gk_scores and hk_scores %}
+                                            {% set avg_tx = tx_scores|sum / tx_scores|length %}
+                                            {% set avg_gk = gk_scores|sum / gk_scores|length %}
+                                            {% set avg_hk = hk_scores|sum / hk_scores|length %}
+                                            {{ "%.2f"|format((avg_tx + avg_gk * 2 + avg_hk * 3) / 6) }}
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-12 text-center text-slate-500">
+                    <i class="fas fa-book-open text-4xl mb-3 text-slate-300"></i>
+                    <p class="font-medium">Chưa có môn học nào</p>
+                    <p class="text-sm">Vui lòng thêm môn học trước khi nhập điểm</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function changeSemester(semester) {
+        const url = new URL(window.location);
+        url.searchParams.set('semester', semester);
+        window.location = url.toString();
+    }
+
+    function updateColumnOptions() {
+        const subjectSelect = document.getElementById('subjectSelect');
+        const gradeTypeSelect = document.getElementById('gradeTypeSelect');
+        const columnSelect = document.getElementById('columnSelect');
+
+        const selectedOption = subjectSelect.options[subjectSelect.selectedIndex];
+        const gradeType = gradeTypeSelect.value;
+
+        if (!selectedOption || !gradeType) {
+            columnSelect.innerHTML = '<option value="1">Cột 1</option>';
+            return;
+        }
+
+        let numColumns = 1;
+        if (gradeType === 'TX') numColumns = parseInt(selectedOption.dataset.tx) || 1;
+        else if (gradeType === 'GK') numColumns = parseInt(selectedOption.dataset.gk) || 1;
+        else if (gradeType === 'HK') numColumns = parseInt(selectedOption.dataset.hk) || 1;
+
+        columnSelect.innerHTML = '';
+        for (let i = 1; i <= numColumns; i++) {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = `Cột ${i}`;
+            columnSelect.appendChild(opt);
+        }
+    }
+</script>
+{% endblock %}

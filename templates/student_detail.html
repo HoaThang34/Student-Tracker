@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Chi Tiết Học Sinh{% endblock %}
+
+{% block content %}
+<h2 class="text-3xl font-bold text-gray-800 mb-6">
+    Chi Tiết Học Sinh: {{ student.name }} (Lớp {{ student.student_class }})
+</h2>
+
+{% if warning %}
+<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+    <p class="font-bold">Cảnh Báo</p>
+    <p>{{ warning }}</p>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-medium text-gray-900 mb-4">Thông Tin Chung</h3>
+        <dl class="space-y-4">
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Họ và tên</dt>
+                <dd class="mt-1 text-lg text-gray-900">{{ student.name }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Lớp</dt>
+                <dd class="mt-1 text-lg text-gray-900">{{ student.student_class }}</dd>
+            </div>
+            <div>
+                <dt class="text-sm font-medium text-gray-500">Điểm Rèn Luyện (Hiện tại)</dt>
+                <dd class="mt-1 text-3xl font-bold text-blue-600">{{ student.current_score }}</dd>
+            </div>
+        </dl>
+
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <a href="{{ url_for('student_transcript', student_id=student.id) }}"
+                class="block w-full px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white text-center font-medium rounded-lg shadow-lg hover:from-indigo-700 hover:to-purple-700 transition">
+                <i class="fas fa-file-alt mr-2"></i> Xem Bảng Điểm Học Tập
+            </a>
+            <a href="{{ url_for('student_grades', student_id=student.id) }}"
+                class="block w-full mt-2 px-4 py-3 bg-white border-2 border-indigo-600 text-indigo-600 text-center font-medium rounded-lg hover:bg-indigo-50 transition">
+                <i class="fas fa-pencil-alt mr-2"></i> Nhập Điểm
+            </a>
+            <a href="{{ url_for('violations_timeline', student_id=student.id) }}"
+                class="block w-full mt-2 px-4 py-3 bg-white border-2 border-red-600 text-red-600 text-center font-medium rounded-lg hover:bg-red-50 transition">
+                <i class="fas fa-history mr-2"></i> Timeline Vi Phạm
+            </a>
+            <a href="{{ url_for('parent_report', student_id=student.id) }}"
+                class="block w-full mt-2 px-4 py-3 bg-gradient-to-r from-green-600 to-teal-600 text-white text-center font-medium rounded-lg shadow-lg hover:from-green-700 hover:to-teal-700 transition">
+                <i class="fas fa-file-pdf mr-2"></i> Báo Cáo Phụ Huynh
+            </a>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-medium text-gray-900 mb-4">Biểu Đồ Xu Hướng (CSDL Thật)</h3>
+
+        <div class="h-80">
+            <canvas id="lineChartStudent"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-md mt-6">
+    <h3 class="text-xl font-medium text-gray-900 mb-4">Lịch Sử Vi Phạm</h3>
+    <ul class="divide-y divide-gray-200">
+        {% for vio in student.violations %}
+        <li class="py-3 flex justify-between items-center">
+            <span class="text-gray-700">Ngày {{ vio.date_committed.strftime('%d/%m/%Y') }}: {{ vio.violation_type_name
+                }}</span>
+            <span class="font-medium text-red-500">-{{ vio.points_deducted }} điểm</span>
+        </li>
+        {% else %}
+        <li class="py-3 text-gray-500">Chưa có vi phạm nào.</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<div class="bg-white p-6 rounded-lg shadow-md mt-6">
+    <h3 class="text-xl font-medium text-gray-900 mb-4">🤖 Trợ Lý AI Soạn Thảo</h3>
+    <p class="text-gray-600 mb-4">Sử dụng AI Sáng tạo (Gemini) để tự động viết nhận xét gửi cho phụ huynh dựa trên dữ
+        liệu rèn luyện thật của học sinh.</p>
+
+    <button id="generate-report-btn" data-student-id="{{ student.id }}"
+        class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        Tạo Nhận Xét Gửi Phụ Huynh
+    </button>
+
+    <div id="report-display" class="mt-4 p-4 border border-gray-200 rounded-md bg-gray-50 hidden">
+        <p id="report-text" class="text-gray-800 whitespace-pre-wrap">Đang tạo nhận xét...</p>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const ctx = document.getElementById('lineChartStudent');
+        if (!ctx || typeof Chart === 'undefined') {
+            console.error('Chart.js chưa sẵn sàng hoặc không tìm thấy canvas');
+            return;
+        }
+
+        // Dữ liệu được render sẵn từ Flask dưới dạng JSON
+        const chartLabels = {{ chart_labels | safe
+    }};
+    const chartScores = {{ chart_scores | safe }};
+
+    try {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Điểm rèn luyện',
+                    data: chartScores,
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        suggestedMin: 50,
+                        suggestedMax: 100
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Lỗi vẽ biểu đồ:', e);
+    }
+});
+</script>
+
+<script>
+    const generateBtn = document.getElementById('generate-report-btn');
+    const reportDisplay = document.getElementById('report-display');
+    const reportText = document.getElementById('report-text');
+
+    generateBtn.addEventListener('click', async () => {
+        reportDisplay.classList.remove('hidden');
+        reportText.innerText = "Đang tạo nhận xét... (Quá trình này có thể mất 5-10 giây)";
+        generateBtn.disabled = true;
+
+        try {
+            // Đọc ID từ thuộc tính data-*
+            const studentId = generateBtn.dataset.studentId;
+
+            const response = await fetch(`/api/generate_report/${studentId}`, {
+                method: 'POST'
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || `Lỗi từ server: ${response.statusText}`);
+            }
+
+            if (data.report) {
+                reportText.innerText = data.report;
+            } else {
+                reportText.innerText = `Lỗi: ${data.error || 'Không nhận được phản hồi từ AI.'}`;
+            }
+
+        } catch (error) {
+            console.error('Lỗi khi gọi API:', error);
+            reportText.innerText = `Lỗi kết nối. Vui lòng kiểm tra Internet và thử lại. \n\nChi tiết: ${error.message}`;
+        } finally {
+            generateBtn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

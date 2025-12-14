@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Quản Lý Học Sinh{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">👥 Quản Lý Học Sinh & Lớp Học</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+        <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-medium text-gray-900 mb-4">Thêm Học Sinh Mới</h2>
+            <form method="POST" action="{{ url_for('add_student') }}" class="grid grid-cols-1 gap-4">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Mã Số HS:</label>
+                        <input type="text" name="student_code" placeholder="Ví dụ: 34TIN-006" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Tên Học Sinh:</label>
+                        <input type="text" name="student_name" placeholder="Nguyễn Văn A" required
+                               class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Lớp:</label>
+                    <select name="student_class" required
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                        <option value="">-- Chọn lớp --</option>
+                        {% for class_name in all_classes %}
+                            <option value="{{ class_name }}">{{ class_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700">
+                    Thêm Học Sinh
+                </button>
+            </form>
+        </div>
+
+        <div class="md:col-span-1 bg-indigo-50 p-6 rounded-lg shadow-md border border-indigo-100">
+            <h2 class="text-xl font-medium text-indigo-900 mb-4">Thêm Lớp Mới</h2>
+            <p class="text-sm text-indigo-700 mb-4">Nếu chưa có lớp trong danh sách, hãy thêm tại đây.</p>
+            
+            <form method="POST" action="{{ url_for('add_class') }}">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-indigo-700">Tên Lớp:</label>
+                    <input type="text" name="class_name" placeholder="Ví dụ: 10 Anh 2" required
+                           class="mt-1 block w-full rounded-md border-indigo-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                    + Tạo Lớp
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <h2 class="text-xl font-medium text-gray-900 p-6 bg-gray-50 border-b">Danh Sách Học Sinh Hiện Tại</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mã Số</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tên</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Lớp</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Điểm</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for student in students %}
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{{ student.student_code }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student.name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ student.student_class }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{{ student.current_score }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <a href="{{ url_for('edit_student', student_id=student.id) }}" class="text-indigo-600 hover:text-indigo-900">Sửa</a>
+                            <form action="{{ url_for('delete_student', student_id=student.id) }}" method="POST" class="inline"
+                                  onsubmit="return confirm('Xóa học sinh này?');">
+                                <button type="submit" class="text-red-600 hover:text-red-900">Xóa</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
