@@ -6,6 +6,7 @@ import datetime
 import base64
 import requests
 import re
+import unicodedata
 from io import BytesIO
 from flask import send_file
 import pandas as pd
@@ -253,20 +254,131 @@ def add_violation():
 @app.route("/upload_ocr", methods=["POST"])
 @login_required
 def upload_ocr():
-    """Chỉ đọc MÃ SỐ THẺ, sau đó tìm trong CSDL."""
+    """AI đọc tên + lớp từ thẻ, sau đó fuzzy matching trong CSDL."""
     uploaded_files = request.files.getlist("files[]")
     if not uploaded_files: return jsonify({"error": "Chưa chọn file."})
 
     results = []
     
     prompt = """
-    Hãy tìm và trích xuất MÃ SỐ HỌC SINH (Student Code) từ ảnh này.
-    Mã số thường có dạng: Chữ in hoa + số (VD: 35TIN-001031, HS123, 12TOAN-05).
+    Hãy đọc THÔNG TIN HỌC SINH từ thẻ trong ảnh này.
     
-    Trả về JSON: {"student_code": "..."}
-    Nếu không thấy, trả về: {"student_code": ""}
-    Không cần đọc tên hay lớp.
+    Trích xuất các thông tin sau (nếu có):
+    - Tên học sinh (họ và tên đầy đủ)
+    - Lớp (ví dụ: 12 Tin, 11A1, 10B, 12TOAN)
+    - Mã số học sinh (nếu có, ví dụ: 12TIN-001, HS123)
+    
+    Trả về JSON với format:
+    {
+        "name": "tên đầy đủ của học sinh",
+        "class": "tên lớp",
+        "student_code": "mã số nếu có, nếu không có để rỗng"
+    }
+    
+    Lưu ý: 
+    - Tên có thể có hoặc không có dấu
+    - Lớp có thể viết liền hoặc có dấu cách (12Tin, 12 Tin)
+    - Nếu không đọc được thông tin nào, trả về chuỗi rỗng ""
     """
+
+    def normalize_text(text):
+        """Chuẩn hóa text: loại bỏ dấu cách thừa, chuyển thành chữ thường"""
+        import unicodedata
+        if not text:
+            return ""
+        # Loại bỏ dấu cách thừa
+        text = " ".join(text.split())
+        # Chuyển thành chữ thường
+        return text.lower().strip()
+    
+    def remove_accents(text):
+        """Loại bỏ dấu tiếng Việt"""
+        if not text:
+            return ""
+        # Chuẩn hóa Unicode về dạng NFD (tách dấu)
+        nfd = unicodedata.normalize('NFD', text)
+        # Loại bỏ các ký tự dấu
+        return ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    
+    def fuzzy_match_students(ocr_name, ocr_class, ocr_code):
+        """Tìm học sinh phù hợp nhất với thông tin OCR"""
+        candidates = []
+        
+        # Chuẩn hóa input
+        ocr_name_norm = normalize_text(ocr_name)
+        ocr_name_no_accent = remove_accents(ocr_name_norm)
+        ocr_class_norm = normalize_text(ocr_class)
+        
+        # Lấy tất cả học sinh
+        all_students = Student.query.all()
+        
+        for student in all_students:
+            score = 0
+            reasons = []
+            
+            # So sánh mã số nếu có
+            if ocr_code and student.student_code:
+                if ocr_code.upper() == student.student_code.upper():
+                    score += 100  # Match chính xác mã số = điểm cao nhất
+                    reasons.append("Mã số khớp chính xác")
+                elif ocr_code.upper() in student.student_code.upper() or student.student_code.upper() in ocr_code.upper():
+                    score += 50
+                    reasons.append("Mã số khớp một phần")
+            
+            # So sánh lớp
+            student_class_norm = normalize_text(student.student_class)
+            if ocr_class_norm and student_class_norm:
+                # Loại bỏ khoảng cách để so sánh (12Tin == 12 Tin)
+                ocr_class_no_space = ocr_class_norm.replace(" ", "")
+                student_class_no_space = student_class_norm.replace(" ", "")
+                
+                if ocr_class_no_space == student_class_no_space:
+                    score += 40
+                    reasons.append("Lớp khớp chính xác")
+                elif ocr_class_no_space in student_class_no_space or student_class_no_space in ocr_class_no_space:
+                    score += 20
+                    reasons.append("Lớp khớp một phần")
+            
+            # So sánh tên
+            student_name_norm = normalize_text(student.name)
+            student_name_no_accent = remove_accents(student_name_norm)
+            
+            if ocr_name_norm and student_name_norm:
+                # So sánh có dấu
+                if ocr_name_norm == student_name_norm:
+                    score += 60
+                    reasons.append("Tên khớp chính xác (có dấu)")
+                # So sánh không dấu
+                elif ocr_name_no_accent == student_name_no_accent:
+                    score += 50
+                    reasons.append("Tên khớp chính xác (không dấu)")
+                # So sánh chứa
+                elif ocr_name_norm in student_name_norm or student_name_norm in ocr_name_norm:
+                    score += 30
+                    reasons.append("Tên khớp một phần (có dấu)")
+                elif ocr_name_no_accent in student_name_no_accent or student_name_no_accent in ocr_name_no_accent:
+                    score += 25
+                    reasons.append("Tên khớp một phần (không dấu)")
+                # Sử dụng difflib để tính similarity
+                else:
+                    from difflib import SequenceMatcher
+                    ratio = SequenceMatcher(None, ocr_name_no_accent, student_name_no_accent).ratio()
+                    if ratio > 0.7:  # 70% giống nhau
+                        score += int(ratio * 30)
+                        reasons.append(f"Tên tương tự {int(ratio*100)}%")
+            
+            if score > 0:
+                candidates.append({
+                    "student": student,
+                    "score": score,
+                    "reasons": reasons
+                })
+        
+        # Sắp xếp theo điểm giảm dần
+        candidates.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Trả về top 3
+        return candidates[:3]
 
     for f in uploaded_files:
         if f.filename == '': continue
@@ -277,22 +389,59 @@ def upload_ocr():
         if os.path.exists(p): os.remove(p)
 
         if data:
-            raw_code = str(data.get("student_code", "")).strip().upper()
+            ocr_name = str(data.get("name", "")).strip()
+            ocr_class = str(data.get("class", "")).strip()
+            ocr_code = str(data.get("student_code", "")).strip().upper()
             
-            student = Student.query.filter_by(student_code=raw_code).first()
+            # Fuzzy matching
+            matches = fuzzy_match_students(ocr_name, ocr_class, ocr_code)
             
-            if not student and len(raw_code) > 3:
-                student = Student.query.filter(Student.student_code.ilike(f"%{raw_code}%")).first()
-
-            item = {
-                "file_name": f.filename,
-                "raw_code": raw_code,
-                "found": bool(student),
-                "db_info": {"name": student.name, "code": student.student_code, "class": student.student_class} if student else None
-            }
+            if matches:
+                # Lấy kết quả tốt nhất
+                best_match = matches[0]
+                student = best_match["student"]
+                
+                item = {
+                    "file_name": f.filename,
+                    "ocr_data": {
+                        "name": ocr_name,
+                        "class": ocr_class,
+                        "code": ocr_code
+                    },
+                    "found": True,
+                    "confidence": best_match["score"],
+                    "match_reasons": best_match["reasons"],
+                    "db_info": {
+                        "name": student.name,
+                        "code": student.student_code,
+                        "class": student.student_class
+                    },
+                    "alternatives": [
+                        {
+                            "name": m["student"].name,
+                            "code": m["student"].student_code,
+                            "class": m["student"].student_class,
+                            "confidence": m["score"],
+                            "reasons": m["reasons"]
+                        }
+                        for m in matches[1:3]  # Top 2-3
+                    ] if len(matches) > 1 else []
+                }
+            else:
+                item = {
+                    "file_name": f.filename,
+                    "ocr_data": {
+                        "name": ocr_name,
+                        "class": ocr_class,
+                        "code": ocr_code
+                    },
+                    "found": False,
+                    "db_info": None
+                }
+            
             results.append(item)
         else:
-            results.append({"file_name": f.filename, "error": error or "Không đọc được mã"})
+            results.append({"file_name": f.filename, "error": error or "Không đọc được thông tin từ thẻ"})
 
     return jsonify({"results": results})
 
@@ -389,13 +538,179 @@ def chatbot():
 @login_required
 def api_chatbot():
     msg = (request.json.get("message") or "").strip()
-    s_list = Student.query.filter(or_(Student.name.ilike(f"%{msg}%"), Student.student_code.ilike(f"%{msg}%"))).limit(3).all()
+    
+    # Tìm kiếm học sinh từ CSDL
+    s_list = Student.query.filter(
+        or_(
+            Student.name.ilike(f"%{msg}%"), 
+            Student.student_code.ilike(f"%{msg}%")
+        )
+    ).limit(5).all()
+    
+    # Nếu tìm thấy học sinh
     if s_list:
-        if len(s_list) == 1: return jsonify({"response": f"Tìm thấy: {s_list[0].name} ({s_list[0].student_code}) - Điểm: {s_list[0].current_score}"})
-        return jsonify({"response": f"Tìm thấy {len(s_list)} kết quả. Vui lòng nhập cụ thể hơn."})
-    prompt = f"Bạn là trợ lý ảo. Trả lời: {msg}"
+        # Nếu có nhiều kết quả - hiển thị danh sách để chọn
+        if len(s_list) > 1:
+            response = f"**Tìm thấy {len(s_list)} học sinh:**\n\n"
+            buttons = []
+            
+            for s in s_list:
+                response += f"• {s.name} ({s.student_code}) - Lớp {s.student_class}\n"
+                buttons.append({
+                    "label": f"{s.name} - {s.student_class}",
+                    "payload": f"{s.name}"
+                })
+            
+            response += "\n*Nhấn vào tên để xem chi tiết*"
+            return jsonify({"response": response.strip(), "buttons": buttons})
+        
+        # Nếu chỉ có 1 kết quả - sử dụng AI để phân tích
+        student = s_list[0]
+        
+        # Thu thập dữ liệu từ CSDL
+        week_cfg = SystemConfig.query.filter_by(key="current_week").first()
+        current_week = int(week_cfg.value) if week_cfg else 1
+        semester = 1
+        school_year = "2023-2024"
+        
+        # Lấy điểm học tập
+        grades = Grade.query.filter_by(
+            student_id=student.id,
+            semester=semester,
+            school_year=school_year
+        ).all()
+        
+        grades_data = {}
+        if grades:
+            grades_by_subject = {}
+            for grade in grades:
+                if grade.subject_id not in grades_by_subject:
+                    grades_by_subject[grade.subject_id] = {
+                        'subject_name': grade.subject.name,
+                        'TX': [],
+                        'GK': [],
+                        'HK': []
+                    }
+                grades_by_subject[grade.subject_id][grade.grade_type].append(grade.score)
+            
+            for subject_id, data in grades_by_subject.items():
+                subject_name = data['subject_name']
+                avg_score = None
+                
+                if data['TX'] and data['GK'] and data['HK']:
+                    avg_tx = sum(data['TX']) / len(data['TX'])
+                    avg_gk = sum(data['GK']) / len(data['GK'])
+                    avg_hk = sum(data['HK']) / len(data['HK'])
+                    avg_score = round((avg_tx + avg_gk * 2 + avg_hk * 3) / 6, 2)
+                    
+                    grades_data[subject_name] = {
+                        'TX': round(avg_tx, 1),
+                        'GK': round(avg_gk, 1),
+                        'HK': round(avg_hk, 1),
+                        'TB': avg_score
+                    }
+        
+        # Lấy vi phạm
+        violations = Violation.query.filter_by(student_id=student.id).order_by(Violation.date_committed.desc()).all()
+        violations_data = []
+        if violations:
+            for v in violations[:5]:
+                violations_data.append({
+                    'type': v.violation_type_name,
+                    'points': v.points_deducted,
+                    'date': v.date_committed.strftime('%d/%m/%Y')
+                })
+        
+        # Tạo context cho AI
+        context = f"""THÔNG TIN HỌC SINH:
+- Họ tên: {student.name}
+- Mã số: {student.student_code}
+- Lớp: {student.student_class}
+- Điểm hành vi hiện tại: {student.current_score}/100
+
+ĐIỂM HỌC TẬP (Học kỳ 1):
+"""
+        if grades_data:
+            for subject, scores in grades_data.items():
+                context += f"- {subject}: TX={scores['TX']}, GK={scores['GK']}, HK={scores['HK']}, TB={scores['TB']}\n"
+        else:
+            context += "- Chưa có dữ liệu điểm\n"
+        
+        context += f"\nVI PHẠM:\n"
+        if violations_data:
+            context += f"- Tổng số: {len(violations)} lần\n"
+            context += "- Chi tiết gần nhất:\n"
+            for v in violations_data:
+                context += f"  + {v['type']} (-{v['points']}đ) - {v['date']}\n"
+        else:
+            context += "- Không có vi phạm\n"
+        
+        # Gọi AI để phân tích
+        prompt = f"""{context}
+
+Câu hỏi của người dùng: "{msg}"
+
+Bạn là trợ lý ảo của giáo viên chủ nhiệm. Hãy phân tích thông tin trên và:
+1. Đưa ra nhận xét tổng quan về học sinh này (điểm mạnh, điểm yếu)
+2. Phân tích kết quả học tập (môn nào tốt, môn nào cần cải thiện)
+3. Nhận xét về hành vi và kỷ luật
+4. Đưa ra đề xuất cụ thể để giúp học sinh phát triển tốt hơn
+
+Trả lời bằng tiếng Việt, thân thiện, chuyên nghiệp. Sử dụng emoji phù hợp và định dạng markdown (** cho chữ đậm, xuống dòng rõ ràng).
+Bắt đầu với tiêu đề "📋 Phân tích về em {student.name}"
+"""
+        
+        ai_response, err = _call_gemini(prompt)
+        
+        if ai_response:
+            # Tạo các nút hành động
+            buttons = [
+                {"label": "📊 Xem học bạ", "payload": f"/student/{student.id}/transcript"},
+                {"label": "📈 Chi tiết điểm", "payload": f"/student/{student.id}"},
+                {"label": "📜 Lịch sử vi phạm", "payload": f"/student/{student.id}/violations_timeline"}
+            ]
+            
+            return jsonify({"response": ai_response.strip(), "buttons": buttons})
+        else:
+            # Fallback nếu AI lỗi - hiển thị dữ liệu raw
+            response = f"**📋 Thông tin học sinh**\n\n"
+            response += f"**Họ tên:** {student.name}\n"
+            response += f"**Mã số:** {student.student_code}\n"
+            response += f"**Lớp:** {student.student_class}\n"
+            response += f"**Điểm hành vi:** {student.current_score}/100\n\n"
+            
+            if grades_data:
+                response += "**📚 Điểm học tập (HK1):**\n"
+                for subject, scores in grades_data.items():
+                    response += f"• {subject}: TX={scores['TX']}, GK={scores['GK']}, HK={scores['HK']}, TB={scores['TB']}\n"
+                response += "\n"
+            
+            if violations_data:
+                response += f"**⚠️ Vi phạm:** {len(violations)} lần\n"
+                response += "**Gần nhất:**\n"
+                for v in violations_data[:3]:
+                    response += f"• {v['type']} (-{v['points']}đ) - {v['date']}\n"
+            else:
+                response += "**✅ Không có vi phạm**\n"
+            
+            buttons = [
+                {"label": "📊 Xem học bạ", "payload": f"/student/{student.id}/transcript"},
+                {"label": "📈 Chi tiết điểm", "payload": f"/student/{student.id}"},
+                {"label": "📜 Lịch sử vi phạm", "payload": f"/student/{student.id}/violations_timeline"}
+            ]
+            
+            return jsonify({"response": response.strip(), "buttons": buttons})
+    
+    # Nếu không tìm thấy học sinh, sử dụng AI để trả lời
+    prompt = f"""Bạn là trợ lý ảo của hệ thống quản lý học sinh. 
+    Người dùng hỏi: "{msg}"
+    
+    Trả lời ngắn gọn, thân thiện bằng tiếng Việt. Nếu họ hỏi về tra cứu học sinh, hướng dẫn nhập tên hoặc mã số học sinh.
+    Nếu họ hỏi về chức năng hệ thống, giải thích rõ ràng.
+    Sử dụng emoji phù hợp và định dạng markdown."""
+    
     ans, err = _call_gemini(prompt)
-    return jsonify({"response": ans or "Lỗi AI."})
+    return jsonify({"response": ans or "Xin lỗi, tôi chưa hiểu câu hỏi của bạn. Bạn có thể nhập tên hoặc mã số học sinh để tra cứu thông tin."})
 
 @app.route("/profile")
 @login_required
@@ -422,7 +737,36 @@ def weekly_report():
     w = int(SystemConfig.query.filter_by(key="current_week").first().value)
     sel = request.args.get('week', w, type=int)
     vios = db.session.query(Violation, Student).join(Student).filter(Violation.week_number == sel).all()
-    return render_template("weekly_report.html", violations=vios, selected_week=sel, system_week=w, total_points=0, total_errors=0, class_rankings=[])
+    
+    total_errors = len(vios)
+    total_points = sum(v.Violation.points_deducted for v in vios)
+    
+    all_classes = ClassRoom.query.all()
+    class_data = []
+    
+    for cls in all_classes:
+        students_in_class = Student.query.filter_by(student_class=cls.name).all()
+        
+        if not students_in_class:
+            continue
+        
+        weekly_deduct = db.session.query(func.sum(Violation.points_deducted))\
+            .join(Student)\
+            .filter(Student.student_class == cls.name, Violation.week_number == sel)\
+            .scalar() or 0
+        
+        avg_score = 100 - weekly_deduct
+        
+        class_data.append({
+            'name': cls.name,
+            'avg_score': round(avg_score, 1),
+            'weekly_deduct': round(weekly_deduct, 1)
+        })
+    
+    class_rankings = sorted(class_data, key=lambda x: x['avg_score'], reverse=True)
+    
+    return render_template("weekly_report.html", violations=vios, selected_week=sel, system_week=w, total_points=total_points, total_errors=total_errors, class_rankings=class_rankings)
+
 
 @app.route("/export_report")
 @login_required
@@ -647,6 +991,31 @@ def delete_grade(grade_id):
         return redirect(url_for("student_grades", student_id=student_id))
     return redirect(url_for("manage_grades"))
 
+@app.route("/api/update_grade/<int:grade_id>", methods=["POST"])
+@login_required
+def update_grade_api(grade_id):
+    """API endpoint để cập nhật điểm inline"""
+    try:
+        data = request.get_json()
+        new_score = float(data.get("score", 0))
+        
+        if new_score < 0 or new_score > 10:
+            return jsonify({"success": False, "error": "Điểm phải từ 0 đến 10"}), 400
+        
+        grade = db.session.get(Grade, grade_id)
+        if not grade:
+            return jsonify({"success": False, "error": "Không tìm thấy điểm"}), 404
+        
+        grade.score = new_score
+        db.session.commit()
+        
+        return jsonify({"success": True, "score": new_score})
+    except ValueError:
+        return jsonify({"success": False, "error": "Điểm không hợp lệ"}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route("/student/<int:student_id>/transcript")
 @login_required
 def student_transcript(student_id):
@@ -729,12 +1098,21 @@ def violations_timeline(student_id):
     .group_by(Violation.violation_type_name)\
     .order_by(desc('count')).all()
     
+    week_labels = [w[0] for w in violations_by_week]
+    week_counts = [w[1] for w in violations_by_week]
+    type_labels = [t[0] for t in violations_by_type]
+    type_counts = [t[1] for t in violations_by_type]
+    
     return render_template(
         "violations_timeline.html",
         student=student,
         violations=violations,
         violations_by_week=violations_by_week,
-        violations_by_type=violations_by_type
+        violations_by_type=violations_by_type,
+        week_labels=week_labels,
+        week_counts=week_counts,
+        type_labels=type_labels,
+        type_counts=type_counts
     )
 
 @app.route("/student/<int:student_id>/parent_report")
