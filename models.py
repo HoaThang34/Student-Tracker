@@ -86,3 +86,16 @@ class Grade(db.Model):
     date_recorded = db.Column(db.DateTime, default=datetime.datetime.utcnow)
     student = db.relationship('Student', backref=db.backref('grades', lazy=True, cascade='all, delete-orphan'))
     subject = db.relationship('Subject', backref=db.backref('grades', lazy=True, cascade='all, delete-orphan'))
+
+
+class ChatConversation(db.Model):
+    """Model lưu trữ lịch sử hội thoại chatbot với context awareness"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.String(100), nullable=False, index=True)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('teacher.id'), nullable=False)
+    role = db.Column(db.String(20), nullable=False)  # 'user' hoặc 'assistant'
+    message = db.Column(db.Text, nullable=False)
+    context_data = db.Column(db.Text, nullable=True)  # JSON metadata (student_id, etc.)
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, index=True)
+    
+    teacher = db.relationship('Teacher', backref=db.backref('chat_history', lazy=True))

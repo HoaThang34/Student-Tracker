@@ -2,7 +2,8 @@
 {% block title %}CYB Chatbot{% endblock %}
 
 {% block content %}
-<div class="h-[85vh] flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 max-w-4xl mx-auto">
+<div
+    class="h-[85vh] flex flex-col bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200 max-w-4xl mx-auto">
     <div class="bg-indigo-600 p-4 flex items-center justify-between text-white shadow-md z-10">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-white rounded-full flex items-center justify-center text-indigo-600 shadow-inner">
@@ -15,25 +16,37 @@
                 </p>
             </div>
         </div>
-        <button onclick="location.reload()" class="text-indigo-200 hover:text-white transition"><i class="fas fa-sync-alt"></i></button>
+        <div class="flex items-center gap-2">
+            <button onclick="clearChat()" class="text-indigo-200 hover:text-white transition"
+                title="Bắt đầu cuộc trò chuyện mới">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <button onclick="location.reload()" class="text-indigo-200 hover:text-white transition"
+                title="Tải lại trang">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
     </div>
-    
+
     <div id="chat-log" class="flex-1 p-6 overflow-y-auto space-y-4 bg-slate-50">
         <div class="flex items-start gap-3">
-            <div class="w-8 h-8 rounded-full bg-indigo-100 flex-shrink-0 flex items-center justify-center text-indigo-600 text-sm font-bold">AI</div>
-            <div class="bg-white p-3.5 rounded-2xl rounded-tl-none shadow-sm text-slate-700 text-sm max-w-[80%] border border-slate-100">
+            <div
+                class="w-8 h-8 rounded-full bg-indigo-100 flex-shrink-0 flex items-center justify-center text-indigo-600 text-sm font-bold">
+                AI</div>
+            <div
+                class="bg-white p-3.5 rounded-2xl rounded-tl-none shadow-sm text-slate-700 text-sm max-w-[80%] border border-slate-100">
                 Xin chào! Tôi có thể giúp bạn tra cứu điểm số, xem lỗi vi phạm hoặc tạo báo cáo nhận xét học sinh.
             </div>
         </div>
     </div>
-    
+
     <div class="p-4 bg-white border-t border-slate-200">
         <form id="chat-form" class="flex items-center gap-2">
-            <input type="text" id="chat-input" 
-                   class="flex-1 p-3 bg-slate-100 border-transparent rounded-full focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-inner text-sm" 
-                   placeholder="Nhập tên học sinh hoặc câu hỏi..." autocomplete="off">
-            <button type="submit" 
-                    class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all flex items-center justify-center flex-shrink-0">
+            <input type="text" id="chat-input"
+                class="flex-1 p-3 bg-slate-100 border-transparent rounded-full focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition shadow-inner text-sm"
+                placeholder="Nhập tên học sinh hoặc câu hỏi..." autocomplete="off">
+            <button type="submit"
+                class="w-12 h-12 bg-indigo-600 text-white rounded-full shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-paper-plane text-sm"></i>
             </button>
         </form>
@@ -45,17 +58,17 @@
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
 
-    chatForm.addEventListener('submit', function(e) {
-        e.preventDefault(); 
+    chatForm.addEventListener('submit', function (e) {
+        e.preventDefault();
         const userMessage = chatInput.value.trim();
         if (userMessage === '') return;
 
         appendMessage(userMessage, 'user');
-        chatInput.value = ''; 
+        chatInput.value = '';
         sendPayload(userMessage);
     });
 
-    chatLog.addEventListener('click', function(e) {
+    chatLog.addEventListener('click', function (e) {
         if (e.target.classList.contains('chat-button')) {
             const payload = e.target.dataset.payload;
             const label = e.target.innerText;
@@ -88,29 +101,29 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: payload })
         })
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById(loadingId).remove();
-            appendMessage(data.response, 'bot', data.buttons || []);
-        })
-        .catch(error => {
-            document.getElementById(loadingId).remove();
-            appendMessage('Lỗi kết nối. Xin thử lại.', 'bot');
-        });
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(loadingId).remove();
+                appendMessage(data.response, 'bot', data.buttons || []);
+            })
+            .catch(error => {
+                document.getElementById(loadingId).remove();
+                appendMessage('Lỗi kết nối. Xin thử lại.', 'bot');
+            });
     }
 
     function appendMessage(message, sender, buttons = []) {
         const messageDiv = document.createElement('div');
         messageDiv.className = sender === 'user' ? 'flex items-end justify-end gap-2' : 'flex items-start gap-3';
-        
+
         // Avatar for Bot only
         let avatarHTML = '';
-        if(sender !== 'user') {
+        if (sender !== 'user') {
             avatarHTML = `<div class="w-8 h-8 rounded-full bg-indigo-100 flex-shrink-0 flex items-center justify-center text-indigo-600 text-sm font-bold">AI</div>`;
         }
 
-        const bubbleClass = sender === 'user' 
-            ? 'bg-indigo-600 text-white rounded-2xl rounded-br-none shadow-md' 
+        const bubbleClass = sender === 'user'
+            ? 'bg-indigo-600 text-white rounded-2xl rounded-br-none shadow-md'
             : 'bg-white text-slate-700 rounded-2xl rounded-tl-none shadow-sm border border-slate-100';
 
         // Format Text
@@ -121,7 +134,7 @@
                 <div class="p-3.5 text-sm ${bubbleClass}">${formattedMsg}</div>
             </div>
         `;
-        
+
         messageDiv.innerHTML = sender === 'user' ? (contentHTML) : (avatarHTML + contentHTML);
 
         // Buttons
@@ -145,8 +158,29 @@
         } else {
             chatLog.appendChild(messageDiv);
         }
-        
+
         chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
+    function clearChat() {
+        if (!confirm('Bắt đầu cuộc trò chuyện mới? Lịch sử hiện tại vẫn được lưu trong hệ thống.')) {
+            return;
+        }
+
+        fetch("{{ url_for('clear_chat_session') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error clearing chat:', error);
+                location.reload();
+            });
     }
 </script>
 {% endblock %}

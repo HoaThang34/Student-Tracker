@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Nhập Dữ Liệu Excel{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <a href="{{ url_for('manage_students') }}" class="text-indigo-600 hover:text-indigo-700 font-medium">
+            <i class="fas fa-arrow-left mr-2"></i> Quay lại
+        </a>
+    </div>
+
+    <div class="bg-white p-8 rounded-xl shadow-lg border border-slate-200 text-center">
+        <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">
+            <i class="fas fa-file-excel"></i>
+        </div>
+        
+        <h1 class="text-2xl font-bold text-slate-800 mb-2">Nhập Danh Sách Học Sinh</h1>
+        <p class="text-slate-500 mb-6">
+            Tải lên file Excel chứa danh sách lớp. <br>
+            Hệ thống sẽ tự động sinh mã theo định dạng: <b>[Khóa] [Chuyên] - 001[STT]</b>
+        </p>
+        
+        <form method="POST" enctype="multipart/form-data" class="space-y-6 text-left">
+            
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Nhập Khóa (VD: 34)</label>
+                <input type="text" name="course_code" required placeholder="34" value="34"
+                       class="block w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-2">Chọn file Excel</label>
+                <label class="block w-full cursor-pointer">
+                    <span class="sr-only">Chọn file</span>
+                    <input type="file" name="file" accept=".xlsx, .xls" required
+                        class="block w-full text-sm text-slate-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        hover:file:bg-indigo-100">
+                </label>
+            </div>
+            
+            <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shadow-lg transition">
+                <i class="fas fa-magic mr-2"></i> Tải Lên & Sinh Mã Tự Động
+            </button>
+        </form>
+
+        <div class="mt-6 p-4 bg-slate-50 rounded border border-slate-200 text-xs text-slate-500 text-left">
+            <b>Lưu ý file Excel:</b> Chỉ cần 2 cột là <b>Họ tên</b> và <b>Lớp</b>. <br>
+            Ví dụ: <i>Nguyễn Văn A | 12 Tin</i>
+        </div>
+    </div>
+</div>
+{% endblock %}

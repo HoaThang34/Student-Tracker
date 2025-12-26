@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% block title %}Nhập Lịch Sử Vi Phạm{% endblock %}
+
+{% block content %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<div class="max-w-7xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Nhập Lịch Sử Vi Phạm Hàng Loạt</h1>
+        <p class="text-slate-500">Đồng bộ dữ liệu cũ từ hồ sơ nhà trường bằng nhập thủ công hoặc file Excel</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="flex space-x-2 mb-6 border-b border-slate-200">
+        <button onclick="switchTab('manual')" id="manual-tab-btn"
+            class="tab-btn active px-6 py-3 text-sm font-semibold border-b-2 border-orange-500 text-orange-600">
+            <i class="fas fa-pen mr-2"></i>Nhập Thủ Công
+        </button>
+        <button onclick="switchTab('excel')" id="excel-tab-btn"
+            class="tab-btn px-6 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-700">
+            <i class="fas fa-file-excel mr-2"></i>Upload Excel
+        </button>
+    </div>
+
+    <!-- Manual Entry Tab -->
+    <div id="manual-tab-content" class="tab-content">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-lg font-bold text-slate-800">Danh Sách Vi Phạm</h2>
+                <button onclick="addViolationRow()"
+                    class="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium">
+                    <i class="fas fa-plus mr-2"></i> Thêm Vi Phạm
+                </button>
+            </div>
+
+            <form id="manual-violations-form">
+                <div id="violations-container" class="space-y-4">
+                    <!-- Rows will be added here -->
+                </div>
+
+                <div class="mt-6 pt-4 border-t flex justify-end gap-3">
+                    <button type="button" onclick="clearAllRows()"
+                        class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition">
+                        <i class="fas fa-trash-alt mr-2"></i> Xóa Tất Cả
+                    </button>
+                    <button type="submit"
+                        class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold shadow-md">
+                        <i class="fas fa-upload mr-2"></i> Nhập Vào Hệ Thống
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Excel Upload Tab -->
+    <div id="excel-tab-content" class="tab-content hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div class="mb-6">
+                <h2 class="text-lg font-bold text-slate-800 mb-2">Upload File Excel</h2>
+                <a href="{{ url_for('download_violation_template') }}"
+                    class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-md">
+                    <i class="fas fa-download mr-2"></i> Tải File Mẫu Excel
+                </a>
+                <p class="text-sm text-slate-500 mt-2">
+                    <i class="fas fa-info-circle"></i> File mẫu chứa cấu trúc cột đúng và dữ liệu mẫu
+                </p>
+            </div>
+
+            <form id="excel-upload-form" enctype="multipart/form-data" class="space-y-4">
+                <div
+                    class="border-2 border-dashed border-slate-300 rounded-xl p-8 text-center hover:bg-slate-50 transition relative">
+                    <input type="file" name="excel_file" id="excel_file" accept=".xlsx,.xls" required
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onchange="updateExcelFileName(this)">
+                    <i class="fas fa-file-excel text-5xl text-emerald-500 mb-3"></i>
+                    <p class="text-sm text-slate-600 font-medium" id="excel-file-name">Kéo thả hoặc click để chọn file
+                        Excel</p>
+                    <p class="text-xs text-slate-400 mt-1">.xlsx hoặc .xls</p>
+                </div>
+
+                <button type="submit"
+                    class="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-bold shadow-md">
+                    <i class="fas fa-file-excel mr-2"></i> Upload & Xử Lý
+                </button>
+            </form>
+
+            <div id="excel-preview" class="mt-6 hidden">
+                <h3 class="text-sm font-bold text-slate-700 mb-3">Kết Quả Import:</h3>
+                <div id="excel-result-message" class="p-4 rounded-lg"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Violation Row Template -->
+<template id="violation-row-template">
+    <div class="violation-row grid grid-cols-12 gap-3 items-start p-4 bg-slate-50 rounded-lg border border-slate-200">
+        <div class="col-span-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Học Sinh</label>
+            <select name="student_code[]" required
+                class="w-full border-slate-300 rounded-lg text-sm py-2 student-select">
+                <option value="">-- Chọn học sinh --</option>
+                {% for s in students %}
+                <option value="{{ s.student_code }}">{{ s.student_code }} - {{ s.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-span-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Loại Vi Phạm</label>
+            <select name="violation_type[]" required
+                class="w-full border-slate-300 rounded-lg text-sm py-2 violation-select">
+                <option value="">-- Loại vi phạm --</option>
+                {% for vt in violation_types %}
+                <option value="{{ vt.name }}" data-points="{{ vt.points_deducted }}">
+                    {{ vt.name }} (-{{ vt.points_deducted }}đ)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Điểm Trừ</label>
+            <input type="number" name="points[]" required readonly
+                class="w-full border-slate-300 bg-slate-100 rounded-lg text-sm py-2 px-3">
+        </div>
+
+        <div class="col-span-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Ngày & Giờ Vi Phạm</label>
+            <input type="datetime-local" name="date_time[]" required
+                class="w-full border-slate-300 rounded-lg text-sm py-2 px-3">
+        </div>
+
+        <div class="col-span-1 flex items-end">
+            <button type="button" onclick="removeRow(this)"
+                class="w-full py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </div>
+</template>
+
+<script>
+    // Tab Switching
+    function switchTab(tab) {
+        if (tab === 'manual') {
+            $('#manual-tab-content').removeClass('hidden');
+            $('#excel-tab-content').addClass('hidden');
+            $('#manual-tab-btn').addClass('active border-orange-500 text-orange-600').removeClass('border-transparent text-slate-500');
+            $('#excel-tab-btn').removeClass('active border-orange-500 text-orange-600').addClass('border-transparent text-slate-500');
+        } else {
+            $('#excel-tab-content').removeClass('hidden');
+            $('#manual-tab-content').addClass('hidden');
+            $('#excel-tab-btn').addClass('active border-emerald-500 text-emerald-600').removeClass('border-transparent text-slate-500');
+            $('#manual-tab-btn').removeClass('active border-orange-500 text-orange-600').addClass('border-transparent text-slate-500');
+        }
+    }
+
+    // Violation Row Management with Select2
+    function addViolationRow() {
+        const template = document.getElementById('violation-row-template');
+        const clone = template.content.cloneNode(true);
+        document.getElementById('violations-container').appendChild(clone);
+
+        // Initialize Select2 for the newly added student select
+        $('.student-select').not('.select2-hidden-accessible').select2({
+            placeholder: "🔍 Tìm kiếm học sinh...",
+            allowClear: true,
+            width: '100%',
+            language: {
+                noResults: function () {
+                    return "Không tìm thấy học sinh";
+                }
+            }
+        });
+    }
+
+    function removeRow(button) {
+        button.closest('.violation-row').remove();
+    }
+
+    function clearAllRows() {
+        if (confirm('Xóa tất cả các vi phạm đã nhập?')) {
+            $('#violations-container').empty();
+        }
+    }
+
+    // Auto-fill points when violation type is selected
+    $(document).on('change', '.violation-select', function () {
+        const points = $(this).find(':selected').data('points');
+        $(this).closest('.violation-row').find('input[name="points[]"]').val(points);
+    });
+
+    // Manual Form Submission
+    $('#manual-violations-form').on('submit', function (e) {
+        e.preventDefault();
+
+        const violations = [];
+        $('.violation-row').each(function () {
+            const dateTimeValue = $(this).find('[name="date_time[]"]').val();
+            if (!dateTimeValue) {
+                alert('Vui lòng nhập đầy đủ thông tin!');
+                return false;
+            }
+
+            violations.push({
+                student_code: $(this).find('[name="student_code[]"]').val(),
+                violation_type_name: $(this).find('[name="violation_type[]"]').val(),
+                points_deducted: parseInt($(this).find('[name="points[]"]').val()),
+                date_committed: dateTimeValue,
+                week_number: null // Will be auto-calculated
+            });
+        });
+
+        if (violations.length === 0) {
+            alert('Chưa có vi phạm nào để nhập!');
+            return;
+        }
+
+        // Submit via AJAX
+        $.ajax({
+            url: '{{ url_for("process_bulk_violations") }}',
+            method: 'POST',
+            data: { manual_violations_json: JSON.stringify(violations) },
+            success: function (response) {
+                if (response.status === 'success') {
+                    alert(response.message);
+                    location.reload();
+                } else if (response.status === 'partial') {
+                    alert(response.message + '\n\nLỗi:\n' + response.errors.join('\n'));
+                    location.reload();
+                } else {
+                    alert('Lỗi: ' + response.message);
+                }
+            },
+            error: function (xhr) {
+                alert('Lỗi server: ' + (xhr.responseJSON?.message || 'Unknown error'));
+            }
+        });
+    });
+
+    // Excel File Name Display
+    function updateExcelFileName(input) {
+        const fileName = input.files[0]?.name || 'Chưa chọn file';
+        $('#excel-file-name').text(fileName);
+    }
+
+    // Excel Upload Form
+    $('#excel-upload-form').on('submit', function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        // Show loading
+        $('#excel-result-message').html('<div class="text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý file Excel...</div>');
+        $('#excel-preview').removeClass('hidden');
+
+        $.ajax({
+            url: '{{ url_for("process_bulk_violations") }}',
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                let resultClass = '';
+                let icon = '';
+
+                if (response.status === 'success') {
+                    resultClass = 'bg-green-50 border border-green-200 text-green-800';
+                    icon = '<i class="fas fa-check-circle mr-2"></i>';
+                } else if (response.status === 'partial') {
+                    resultClass = 'bg-yellow-50 border border-yellow-200 text-yellow-800';
+                    icon = '<i class="fas fa-exclamation-triangle mr-2"></i>';
+                } else {
+                    resultClass = 'bg-red-50 border border-red-200 text-red-800';
+                    icon = '<i class="fas fa-times-circle mr-2"></i>';
+                }
+
+                let errorList = '';
+                if (response.errors && response.errors.length > 0) {
+                    errorList = '<div class="mt-3 text-sm"><strong>Lỗi:</strong><ul class="list-disc ml-5 mt-1">';
+                    response.errors.forEach(err => {
+                        errorList += `<li>${err}</li>`;
+                    });
+                    errorList += '</ul></div>';
+                }
+
+                $('#excel-result-message').html(`
+                <div class="${resultClass} p-4 rounded-lg">
+                    <div class="font-bold">${icon}${response.message}</div>
+                    ${errorList}
+                </div>
+            `);
+
+                if (response.status === 'success') {
+                    setTimeout(() => location.reload(), 2000);
+                }
+            },
+            error: function (xhr) {
+                $('#excel-result-message').html(`
+                <div class="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
+                    <div class="font-bold"><i class="fas fa-times-circle mr-2"></i>Lỗi Server</div>
+                    <div class="text-sm mt-2">${xhr.responseJSON?.message || 'Unknown error'}</div>
+                </div>
+            `);
+            }
+        });
+    });
+
+    // Initialize with one row
+    $(document).ready(function () {
+        addViolationRow();
+    });
+
+
+</script>
+
+<style>
+    .tab-btn.active {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

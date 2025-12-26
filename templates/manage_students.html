@@ -8,8 +8,17 @@
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
         <div class="md:col-span-2 bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-medium text-gray-900 mb-4">Thêm Học Sinh Mới</h2>
-            <form method="POST" action="{{ url_for('add_student') }}" class="grid grid-cols-1 gap-4">
+    
+    <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-medium text-gray-900">Thêm Học Sinh Mới</h2>
+        
+        <a href="{{ url_for('import_students') }}" 
+           class="inline-flex items-center px-4 py-2 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 shadow-sm transition">
+            <i class="fas fa-file-excel mr-2"></i> Nhập từ Excel
+        </a>
+    </div>
+    <form method="POST" action="{{ url_for('add_student') }}" class="grid grid-cols-1 gap-4">
+            
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -41,24 +50,54 @@
             </form>
         </div>
 
-        <div class="md:col-span-1 bg-indigo-50 p-6 rounded-lg shadow-md border border-indigo-100">
-            <h2 class="text-xl font-medium text-indigo-900 mb-4">Thêm Lớp Mới</h2>
-            <p class="text-sm text-indigo-700 mb-4">Nếu chưa có lớp trong danh sách, hãy thêm tại đây.</p>
+        <div class="md:col-span-1 space-y-6">
             
-            <form method="POST" action="{{ url_for('add_class') }}">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-indigo-700">Tên Lớp:</label>
-                    <input type="text" name="class_name" placeholder="Ví dụ: 10 Anh 2" required
-                           class="mt-1 block w-full rounded-md border-indigo-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
-                </div>
-                <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
-                    + Tạo Lớp
-                </button>
-            </form>
-        </div>
-    </div>
+            <div class="bg-indigo-50 p-6 rounded-lg shadow-md border border-indigo-100">
+                <h2 class="text-xl font-medium text-indigo-900 mb-4">Thêm Lớp Mới</h2>
+                <form method="POST" action="{{ url_for('add_class') }}">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-indigo-700">Tên Lớp:</label>
+                        <input type="text" name="class_name" placeholder="Ví dụ: 10A1" required
+                               class="mt-1 block w-full rounded-md border-indigo-300 shadow-sm focus:ring-indigo-500 focus:border-indigo-500 p-2 border">
+                    </div>
+                    <button type="submit" class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 font-bold">
+                        <i class="fas fa-plus mr-1"></i> Tạo Lớp
+                    </button>
+                </form>
+            </div>
 
-    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+            <div class="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Danh Sách Lớp</h2>
+                
+                <div class="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                    {% for cls in class_list %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg group hover:bg-indigo-50 transition">
+                        <span class="font-medium text-gray-700 group-hover:text-indigo-700">{{ cls.name }}</span>
+                        
+                        <div class="flex gap-2 opacity-60 group-hover:opacity-100 transition">
+                            <button type="button" onclick="openEditClassModal('{{ cls.id }}', '{{ cls.name }}')"
+                                    class="text-blue-600 hover:bg-blue-100 p-1.5 rounded transition" title="Đổi tên">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            
+                            <form action="{{ url_for('delete_class', class_id=cls.id) }}" method="POST" 
+                                  onsubmit="return confirm('⚠️ CẢNH BÁO: Bạn có chắc chắn muốn xóa lớp {{ cls.name }}?\n\nChỉ xóa được khi lớp KHÔNG CÒN học sinh nào.');">
+                                <button type="submit" class="text-red-500 hover:bg-red-100 p-1.5 rounded transition" title="Xóa lớp">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                  {% if not class_list %}
+                    <p class="text-sm text-gray-400 italic text-center py-4">Chưa có lớp nào.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div> <div class="bg-white shadow-md rounded-lg overflow-hidden mt-8">
         <h2 class="text-xl font-medium text-gray-900 p-6 bg-gray-50 border-b">Danh Sách Học Sinh Hiện Tại</h2>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -92,4 +131,54 @@
         </div>
     </div>
 </div>
+<div id="editClassModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+    <div class="relative bg-white rounded-lg shadow-xl p-8 max-w-sm w-full mx-4 animate-fade-in-down">
+        <h3 class="text-xl font-bold text-gray-900 mb-4">Đổi Tên Lớp</h3>
+        
+        <form id="editClassForm" method="POST" action="">
+            <div class="mb-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Tên mới:</label>
+                <input type="text" id="newClassNameInput" name="new_name" required
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <p class="text-xs text-amber-600 mt-2 bg-amber-50 p-2 rounded">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Lưu ý: Tất cả học sinh thuộc lớp cũ sẽ được chuyển sang tên mới này ngay lập tức.
+                </p>
+            </div>
+            
+            <div class="flex justify-end gap-3">
+                <button type="button" onclick="document.getElementById('editClassModal').classList.add('hidden')"
+                        class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium transition">
+                    Hủy
+                </button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow transition">
+                    Lưu Thay Đổi
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditClassModal(id, currentName) {
+        const modal = document.getElementById('editClassModal');
+        const form = document.getElementById('editClassForm');
+        const input = document.getElementById('newClassNameInput');
+        
+        // Cập nhật đường dẫn action cho form để gửi đúng ID lớp
+        form.action = "/edit_class/" + id;
+        input.value = currentName;
+        
+        // Hiện modal
+        modal.classList.remove('hidden');
+        input.focus();
+    }
+    
+    // Đóng modal khi bấm ra ngoài
+    window.onclick = function(event) {
+        const modal = document.getElementById('editClassModal');
+        if (event.target == modal) {
+            modal.classList.add('hidden');
+        }
+    }
+</script>
 {% endblock %}

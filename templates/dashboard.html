@@ -8,8 +8,8 @@
         <p class="text-slate-500 mt-1">Số liệu thống kê vi phạm và nề nếp tuần {{ current_week_number }}.</p>
     </div>
     
-    <div class="flex items-center gap-3">
-         <form method="GET" action="{{ url_for('dashboard') }}" class="relative">
+   <div class="flex items-center gap-3">
+        <form method="GET" action="{{ url_for('dashboard') }}" class="relative">
             <i class="fas fa-filter absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
             <select name="class_select" onchange="this.form.submit()"
                     class="pl-10 pr-8 py-2 border border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-sm bg-white hover:bg-slate-50 cursor-pointer">
@@ -21,6 +21,11 @@
                 {% endfor %}
             </select>
         </form>
+
+        <button id="btn-analyze-ai" onclick="analyzeClass()" type="button"
+                class="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg shadow-md text-sm font-bold transition-all flex items-center gap-2 transform hover:-translate-y-0.5">
+            <i class="fas fa-magic"></i> <span>AI Phân tích</span>
+        </button>
 
         <form action="{{ url_for('reset_week') }}" method="POST" 
               onsubmit="return confirm('⚠️ Hành động này sẽ reset điểm của toàn bộ học sinh về 100. Bạn có chắc chắn không?');">
@@ -46,6 +51,21 @@
     </div>
     <div id="clock-time" class="z-10 text-5xl md:text-6xl font-mono font-bold tracking-widest mt-4 md:mt-0 text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400">
         00:00:00
+    </div>
+</div>
+
+<div id="ai-analysis-box" class="hidden mb-8 bg-white border-l-4 border-purple-500 rounded-r-xl shadow-lg p-6 relative overflow-hidden">
+    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-purple-100 rounded-full opacity-50 blur-xl"></div>
+    <div class="flex gap-4 relative z-10">
+        <div class="flex-shrink-0">
+            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xl shadow-sm">
+                <i class="fas fa-robot"></i>
+            </div>
+        </div>
+        <div class="flex-grow">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Trợ Lý Ảo Nhận Xét</h3>
+            <div id="ai-content" class="text-gray-700 leading-relaxed text-sm md:text-base whitespace-pre-line"></div>
+        </div>
     </div>
 </div>
 
@@ -76,6 +96,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // 1. Cấu hình Đồng hồ
     function updateClock() {
         const now = new Date();
         document.getElementById('clock-time').innerText = now.toLocaleTimeString('vi-VN', { hour12: false });
@@ -85,7 +106,7 @@
     setInterval(updateClock, 1000);
     updateClock();
 
-    // Charts Config
+    // 2. Cấu hình Biểu đồ (Chart.js)
     Chart.defaults.font.family = "'Inter', sans-serif";
     Chart.defaults.color = '#64748b';
     
@@ -95,7 +116,7 @@
     const barData = {{ bar_data | safe }};
 
     new Chart(document.getElementById('pieChart'), {
-        type: 'doughnut', // Đổi sang Doughnut cho đẹp hơn
+        type: 'doughnut',
         data: {
             labels: pieLabels,
             datasets: [{
@@ -137,5 +158,59 @@
             plugins: { legend: { display: false } }
         }
     });
+
+    // 3. Code xử lý AI Phân Tích
+    async function analyzeClass() {
+        const btn = document.getElementById('btn-analyze-ai');
+        const box = document.getElementById('ai-analysis-box');
+        const content = document.getElementById('ai-content');
+        
+        // Lấy tên lớp
+        const selectElement = document.querySelector('select[name="class_select"]');
+        const className = selectElement ? selectElement.value : "";
+        
+        // Loading...
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang suy nghĩ...';
+        
+        box.classList.remove('hidden');
+        content.innerHTML = '<span class="text-slate-400 italic">Đang phân tích dữ liệu...</span>';
+
+        try {
+            const response = await fetch('/api/analyze_class_stats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ class_name: className })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                content.innerHTML = `<span class="text-red-500">Lỗi: ${data.error}</span>`;
+            } else {
+                typeWriterEffect(data.analysis, content);
+            }
+        } catch (err) {
+            console.error(err);
+            content.innerHTML = '<span class="text-red-500">Lỗi kết nối server.</span>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+
+    function typeWriterEffect(text, element) {
+        element.innerHTML = "";
+        let i = 0;
+        function type() {
+            if (i < text.length) {
+                element.innerHTML += (text.charAt(i) === '\n') ? '<br>' : text.charAt(i);
+                i++;
+                setTimeout(type, 15);
+            }
+        }
+        type();
+    }
 </script>
 {% endblock %}

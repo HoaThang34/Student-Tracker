@@ -4,22 +4,22 @@
 {% block content %}
 <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
     <h1 class="text-3xl font-bold text-slate-800">Bảng Điểm Rèn Luyện</h1>
-    
+
     <div class="bg-white p-1.5 rounded-xl shadow-sm border border-slate-200 flex w-full md:w-auto">
         <form method="GET" action="{{ url_for('index') }}" class="flex w-full md:w-auto">
             <select name="class_select" onchange="this.form.submit()"
-                    class="bg-transparent border-none text-sm focus:ring-0 text-slate-600 font-medium cursor-pointer py-2 pl-3 pr-8 border-r border-slate-100">
+                class="bg-transparent border-none text-sm focus:ring-0 text-slate-600 font-medium cursor-pointer py-2 pl-3 pr-8 border-r border-slate-100">
                 <option value="">Tất cả lớp</option>
                 {% for class_name in all_classes %}
-                    <option value="{{ class_name }}" {% if class_name == selected_class %}selected{% endif %}>
-                        {{ class_name }}
-                    </option>
+                <option value="{{ class_name }}" {% if class_name==selected_class %}selected{% endif %}>
+                    {{ class_name }}
+                </option>
                 {% endfor %}
             </select>
-            <input type="text" name="search" value="{{ search_query }}" 
-                   placeholder="Tìm tên, mã số..."
-                   class="flex-1 min-w-[200px] border-none focus:ring-0 text-sm px-3 bg-transparent">
-            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-lg transition-colors">
+            <input type="text" name="search" value="{{ search_query }}" placeholder="Tìm tên, mã số..."
+                class="flex-1 min-w-[200px] border-none focus:ring-0 text-sm px-3 bg-transparent">
+            <button type="submit"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 rounded-lg transition-colors">
                 <i class="fas fa-search"></i>
             </button>
         </form>
@@ -27,9 +27,12 @@
 </div>
 
 {% if search_query %}
-<div class="mb-6 inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-100">
+<div
+    class="mb-6 inline-flex items-center px-4 py-2 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium border border-indigo-100">
     <span>Kết quả cho: "{{ search_query }}"</span>
-    <a href="{{ url_for('index') }}" class="ml-2 w-5 h-5 flex items-center justify-center rounded-full bg-indigo-200 hover:bg-indigo-300 text-indigo-800 transition"><i class="fas fa-times text-xs"></i></a>
+    <a href="{{ url_for('index') }}"
+        class="ml-2 w-5 h-5 flex items-center justify-center rounded-full bg-indigo-200 hover:bg-indigo-300 text-indigo-800 transition"><i
+            class="fas fa-times text-xs"></i></a>
 </div>
 {% endif %}
 
@@ -38,10 +41,16 @@
         <table class="min-w-full divide-y divide-slate-100">
             <thead class="bg-slate-50">
                 <tr>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Học Sinh</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lớp</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Điểm Rèn Luyện</th>
-                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lịch Sử Vi Phạm (Gần đây)</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Học
+                        Sinh</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lớp
+                    </th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Điểm
+                        Rèn Luyện</th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">GPA
+                    </th>
+                    <th class="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Lịch
+                        Sử Vi Phạm (Gần đây)</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-50 bg-white">
@@ -50,12 +59,14 @@
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="flex-shrink-0 h-10 w-10">
-                                <div class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                                <div
+                                    class="h-10 w-10 rounded-full bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white font-bold text-sm shadow-sm">
                                     {{ student.name.split()[-1][0] }}
                                 </div>
                             </div>
                             <div class="ml-4">
-                                <a href="{{ url_for('student_detail', student_id=student.id) }}" class="text-sm font-medium text-slate-900 group-hover:text-indigo-600 transition">
+                                <a href="{{ url_for('student_detail', student_id=student.id) }}"
+                                    class="text-sm font-medium text-slate-900 group-hover:text-indigo-600 transition">
                                     {{ student.name }}
                                 </a>
                                 <div class="text-xs text-slate-500">{{ student.student_code }}</div>
@@ -63,45 +74,80 @@
                         </div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+                        <span
+                            class="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-slate-100 text-slate-800 border border-slate-200">
                             {{ student.student_class }}
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {% if student.current_score >= 90 %}
-                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
-                                {{ student.current_score }} (Tốt)
-                            </span>
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                            {{ student.current_score }} (Tốt)
+                        </span>
                         {% elif student.current_score >= 70 %}
-                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                                {{ student.current_score }} (Khá)
-                            </span>
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                            {{ student.current_score }} (Khá)
+                        </span>
                         {% else %}
-                            <span class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-red-100 text-red-700 border border-red-200">
-                                {{ student.current_score }} (Yếu)
-                            </span>
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-red-100 text-red-700 border border-red-200">
+                            {{ student.current_score }} (Yếu)
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        {% set gpa = student_gpas.get(student.id) %}
+                        {% if gpa %}
+                        {% if gpa >= 8.5 %}
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                            {{ gpa }} (Giỏi)
+                        </span>
+                        {% elif gpa >= 7.0 %}
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-green-100 text-green-700 border border-green-200">
+                            {{ gpa }} (Khá)
+                        </span>
+                        {% elif gpa >= 5.0 %}
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-yellow-100 text-yellow-700 border border-yellow-200">
+                            {{ gpa }} (TB)
+                        </span>
+                        {% else %}
+                        <span
+                            class="px-3 py-1 inline-flex text-sm leading-5 font-bold rounded-full bg-red-100 text-red-700 border border-red-200">
+                            {{ gpa }} (Yếu)
+                        </span>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-slate-400 text-xs italic">Chưa có điểm</span>
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 text-sm text-slate-500">
                         {% if student.violations %}
-                            <div class="flex flex-wrap gap-1">
-                                {% for vio in student.violations[-3:] %}
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-100" title="{{ vio.date_committed }}">
-                                        {{ vio.violation_type_name }}
-                                    </span>
-                                {% endfor %}
-                                {% if student.violations|length > 3 %}
-                                    <span class="text-xs text-slate-400">+{{ student.violations|length - 3 }} khác</span>
-                                {% endif %}
-                            </div>
+                        <div class="flex flex-wrap gap-1">
+                            {% for vio in student.violations[-3:] %}
+                            <span
+                                class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-50 text-red-600 border border-red-100"
+                                title="{{ vio.date_committed }}">
+                                {{ vio.violation_type_name }}
+                            </span>
+                            {% endfor %}
+                            {% if student.violations|length > 3 %}
+                            <span class="text-xs text-slate-400">+{{ student.violations|length - 3 }} khác</span>
+                            {% endif %}
+                        </div>
                         {% else %}
-                            <span class="text-slate-400 text-xs italic"><i class="fas fa-check-circle text-emerald-400 mr-1"></i> Chưa có vi phạm</span>
+                        <span class="text-slate-400 text-xs italic"><i
+                                class="fas fa-check-circle text-emerald-400 mr-1"></i> Chưa có vi phạm</span>
                         {% endif %}
                     </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="4" class="px-6 py-12 text-center">
+                    <td colspan="5" class="px-6 py-12 text-center">
                         <div class="flex flex-col items-center justify-center text-slate-400">
                             <i class="fas fa-search text-4xl mb-3 opacity-50"></i>
                             <p class="text-base">Không tìm thấy học sinh nào phù hợp.</p>
