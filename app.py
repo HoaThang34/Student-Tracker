@@ -11,6 +11,7 @@ import uuid
 from io import BytesIO
 from flask import send_file
 import pandas as pd
+import ollama
 
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, desc, or_
@@ -35,9 +36,9 @@ app.config["SECRET_KEY"] = "chia-khoa-bi-mat-cua-ban-ne-123456"
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(basedir, "database.db")
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip() 
-GEMINI_MODEL = "gemini-3-flash"  
-GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
+# Ollama Configuration
+OLLAMA_MODEL = "gemini-3-flash-preview:cloud"
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
 
 db.init_app(app)
 login_manager = LoginManager()
@@ -308,36 +309,81 @@ def import_violations_to_db(violations_data):
     return errors, success_count
 
 def _call_gemini(prompt, image_path=None, is_json=False):
-    if not GEMINI_API_KEY:
-        return None, "Chưa cấu hình GEMINI_API_KEY."
-
-    headers = {"Content-Type": "application/json"}
-    parts = [{"text": prompt}]
-
-    if image_path:
-        try:
-            with open(image_path, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode("utf-8")
-            parts.append({"inline_data": {"mime_type": "image/jpeg", "data": encoded_string}})
-        except Exception as e:
-            return None, f"Lỗi đọc file ảnh: {str(e)}"
-
-    payload = {"contents": [{"parts": parts}]}
-    if is_json:
-        payload["generationConfig"] = {"response_mime_type": "application/json"}
-
+    """
+    Gọi Ollama local model để xử lý text hoặc vision tasks
+    
+    Args:
+        prompt (str): Text prompt
+        image_path (str, optional): Đường dẫn đến file ảnh
+        is_json (bool): Yêu cầu response dạng JSON
+    
+    Returns:
+        tuple: (response_text/dict, error_message)
+    """
     try:
-        response = requests.post(GEMINI_API_URL, json=payload, headers=headers, timeout=30)
-        if response.status_code == 200:
-            result = response.json()
+        # Prepare messages
+        messages = []
+        
+        if image_path:
+            # Vision task - sử dụng ollama.chat với images
             try:
-                text = result["candidates"][0]["content"]["parts"][0]["text"]
-                if is_json: return json.loads(text), None
-                return text, None
-            except: return None, "Lỗi parse dữ liệu từ AI."
-        return None, f"Lỗi API ({response.status_code})"
+                with open(image_path, "rb") as image_file:
+                    image_data = base64.b64encode(image_file.read()).decode("utf-8")
+                
+                messages.append({
+                    'role': 'user',
+                    'content': prompt,
+                    'images': [image_data]
+                })
+            except Exception as e:
+                return None, f"Lỗi đọc file ảnh: {str(e)}"
+        else:
+            # Text-only task
+            messages.append({
+                'role': 'user',
+                'content': prompt
+            })
+        
+        # Prepare options
+        options = {}
+        if is_json:
+            # Thêm instruction vào prompt để yêu cầu JSON format
+            messages[0]['content'] = f"{prompt}\n\nIMPORTANT: Response MUST be valid JSON only, no additional text."
+        
+        # Call Ollama
+        response = ollama.chat(
+            model=OLLAMA_MODEL,
+            messages=messages,
+            options=options
+        )
+        
+        # Extract response text
+        if response and 'message' in response and 'content' in response['message']:
+            text = response['message']['content'].strip()
+            
+            # Parse JSON if requested
+            if is_json:
+                try:
+                    # Try to extract JSON from markdown code blocks if present
+                    if '```json' in text:
+                        json_start = text.find('```json') + 7
+                        json_end = text.find('```', json_start)
+                        text = text[json_start:json_end].strip()
+                    elif '```' in text:
+                        json_start = text.find('```') + 3
+                        json_end = text.find('```', json_start)
+                        text = text[json_start:json_end].strip()
+                    
+                    return json.loads(text), None
+                except json.JSONDecodeError as e:
+                    return None, f"Lỗi parse JSON: {str(e)}\nResponse: {text[:200]}"
+            
+            return text, None
+        else:
+            return None, "Không nhận được response từ Ollama"
+            
     except Exception as e:
-        return None, f"Lỗi kết nối: {str(e)}"
+        return None, f"Lỗi kết nối Ollama: {str(e)}"
 
 
 @app.route('/')
